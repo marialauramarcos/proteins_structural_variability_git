@@ -1,0 +1,911 @@
+---
+title: "LPD vs. Experimental Structural Divergence"
+output: html_document
+---
+
+# Introduction
+In this report we compare different LPD measures (their inverse, 1/CN and 1/WCN), with mean SDi experimental profiles. We do this because theoretical mean SDi is proportional to 1/CN or 1/WCN (depending on the ENM used to generate mutants). Then, using different R0 to calculate CN, we can get an idea of the results that will come from the simulations and choose some values of R0 to generate mutants. 
+Theoretical SDi of ANM  is proportional to 1/CN with an r of aprox. 0.97, meanwhile theoretical SDi of pfANM  is proportional to 1/WCN with a lower value of r.
+To calculate LPD measures, we used only CA of aa ("CA"), and both CA and CM ("CM").
+
+p = pearson correlation coef,
+s = spearman correlation coef.
+```{r setup, include = FALSE}
+# set chunk options
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r load-packages}
+# load packages
+library(ggplot2)
+library(reshape2)
+library(plyr)
+library(quantreg)
+library(bio3d)
+
+# load functions
+source("FUNCTIONS/ReadCA.R") 
+source("FUNCTIONS/CalculateSideChainCM.R")
+source(file.path(data.dir, "multiplot.R"))
+source(file.path(data.dir, "my-functions.R"))
+```
+
+```{r set-file-names}
+# set input filenames
+
+## CM
+data.dir <- paste("OUT/out_subset_CA_ANM", sep = "")
+R0 = R0.CA
+  
+## data
+reference.fname = file.path(data.dir, paste(family, "_ref.txt", sep = ""))
+protein_list.fname = file.path(data.dir, paste(family, "_list.txt", sep = ""))
+
+## profiles to compare
+dri2.exp.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_no.sel_K.analysis_Keff_out_m.exp.norm.dr.squarei.csv", sep = ""))
+dri2.medium.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_medium.sel_K.analysis_Keff_out_m.theo.norm.dr.squarei.csv", sep = ""))
+dri2.mut.fname = file.path(data.dir,paste(family, "_R0_", R0, "_beta_no.sel_K.analysis_Keff_out_m.theo.norm.dr.squarei.csv", sep = ""))
+
+## consurf
+score.fname = file.path(data.dir, paste(p.ref, "_consurf.csv", sep = ""))
+sim.data.mut.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_no.sel_out_df.data.csv", sep = ""))
+sim.data.medium.sel.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_medium.sel_out_df.data.csv", sep = ""))
+```
+
+```{r set-reference-protein}
+# which is the reference protein?
+reference = as.character(read.table(reference.fname, header = F)[1, 1])
+if (reference != p.ref) {
+  print("Warning: different references")
+}
+```
+
+In this case we studied the `r family` family. 
+We used as reference for the ENM the protein with pdb code `r reference`. 
+The `r family` family is of the type `r type` and consists of the following proteins:
+
+```{r set-experimental-protein-names}
+# experimental protein names
+protein.exp = read.table(protein_list.fname, header = F, stringsAsFactors = F)[, 1]
+protein.exp = protein.exp[protein.exp != reference]
+print(protein.exp)
+```
+
+```{r set-site-info, include = FALSE}
+
+# read reference pdb and calculate resno, AA, and CN
+reference.pdb.fname = file.path(data.dir,paste(reference, ".pdb", sep = ""))
+ref.pdb = read.pdb(reference.pdb.fname)
+inds = atom.select(ref.pdb, elety = "CA")
+ref.pdb.ca = ref.pdb$atom[inds$atom, ]
+n.sites = length(ref.pdb.ca$resid)
+AA = ref.pdb.ca$resid
+resno = seq(1:n.sites)
+pdb.info = data.frame(resno, AA)
+names(pdb.info) = c("resno", "AA")
+print(n.sites)
+
+site.info = pdb.info
+
+### CA ###
+
+# calculate CN
+R0 = -0.1
+cmap.ca.1 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.neg.0.1.CA = rep(0, n.sites)
+
+R0 = 2.5
+cmap.ca.R0.2.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.2.5.CA = rep(0, n.sites)
+
+R0 = 7.5
+cmap.ca.R0.7.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.7.5.CA = rowSums(cmap.ca.R0.7.5, na.rm = T) - 1 # diag(cmap.ca) returned by cmap is 1!
+
+R0 = 12.5
+cmap.ca.R0.12.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.12.5.CA = rowSums(cmap.ca.R0.12.5, na.rm = T) - 1 # diag(cmap.ca) returned by cmap is 1!
+
+R0 = 17.5
+cmap.ca.R0.17.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.17.5.CA = rowSums(cmap.ca.R0.17.5, na.rm = T) - 1 # diag(cmap.ca) returned by cmap is 1!
+
+R0 = 22.5
+cmap.ca.R0.22.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.22.5.CA = rowSums(cmap.ca.R0.22.5, na.rm = T) - 1 # diag(cmap.ca) returned by cmap is 1!
+
+R0 = 27.5
+cmap.ca.R0.27.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.27.5.CA = rowSums(cmap.ca.R0.27.5, na.rm = T) - 1 # diag(cmap.ca) returned by cmap is 1!
+
+R0 = 32.5
+cmap.ca.R0.32.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.32.5.CA = rowSums(cmap.ca.R0.32.5, na.rm = T) - 1 # diag(cmap.ca) returned by cmap is 1!
+
+R0 = 37.5
+cmap.ca.R0.37.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.37.5.CA = rowSums(cmap.ca.R0.37.5, na.rm = T) - 1 # diag(cmap.ca) returned by cmap is 1!
+
+R0 = 42.5
+cmap.ca.R0.42.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.42.5.CA = rowSums(cmap.ca.R0.42.5, na.rm = T) - 1 # diag(cmap.ca) returned by cmap is 1!
+
+R0 = 47.5
+cmap.ca.R0.47.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.47.5.CA = rowSums(cmap.ca.R0.47.5, na.rm = T) - 1 # diag(cmap.ca) returned by cmap is 1!
+
+R0 = 52.5
+cmap.ca.R0.52.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.52.5.CA = rowSums(cmap.ca.R0.52.5, na.rm = T) - 1 # diag(cmap.ca) returned by cmap is 1!
+
+# calculate WCN
+r.p.ref = matrix(ref.pdb$xyz[inds$xyz], nrow = 3)
+dist.r.p.ref = dist.xyz(t(r.p.ref))
+WCN.CA = c()
+for (i in (1:ncol(r.p.ref))) {
+  WCN.CA[i] = sum(1/dist.r.p.ref[i, -i]^2)
+}
+
+### CM ###
+
+# Read PDB of p.ref
+pdb.ca = ReadCA(reference.pdb.fname, chain.p.ref)
+r.ca.p.ref = pdb.ca$xy.n.calpha
+r.CM.p.ref = CalculateSideChainCM(reference.pdb.fname, chain.p.ref)
+r.p.ref = cbind(r.CM.p.ref, r.ca.p.ref)
+  
+# calculate CN
+R0 = -0.1
+cmap.CM.1 = cmap(as.vector(r.p.ref), dcut = R0, scut = 0, mask.lower = F)
+CN.R0.neg.0.1.CM = rep(0, n.sites)
+
+R0 = 2.5
+cmap.CM.R0.2.5 = cmap(as.vector(r.p.ref), dcut = R0, scut = 0, mask.lower = F)
+CN.R0.2.5.CM = rep(0, n.sites)
+
+R0 = 7.5
+cmap.CM.R0.7.5 = cmap(as.vector(r.p.ref), dcut = R0, scut = 0, mask.lower = F)
+CN.R0.7.5.CM = (rowSums(cmap.CM.R0.7.5, na.rm = T) - 2)[1:ncol(r.CM.p.ref)]
+
+R0 = 12.5
+cmap.CM.12.5 = cmap(as.vector(r.p.ref), dcut = R0, scut = 0, mask.lower = F)
+CN.R0.12.5.CM = (rowSums(cmap.CM.12.5, na.rm = T) - 2)[1:ncol(r.CM.p.ref)]
+
+R0 = 17.5
+cmap.CM.R0.17.5 = cmap(as.vector(r.p.ref), dcut = R0, scut = 0, mask.lower = F)
+CN.R0.17.5.CM = (rowSums(cmap.CM.R0.17.5, na.rm = T) - 2)[1:ncol(r.CM.p.ref)]
+
+R0 = 22.5
+cmap.CM.R0.22.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.22.5.CM = (rowSums(cmap.CM.R0.22.5, na.rm = T) - 2)[1:ncol(r.CM.p.ref)]
+
+R0 = 27.5
+cmap.CM.R0.27.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.27.5.CM = (rowSums(cmap.CM.R0.27.5, na.rm = T) - 2)[1:ncol(r.CM.p.ref)]
+
+R0 = 32.5
+cmap.CM.R0.32.5 = cmap(as.vector(r.p.ref), dcut = R0, scut = 0, mask.lower = F)
+CN.R0.32.5.CM = (rowSums(cmap.CM.R0.32.5, na.rm = T) - 2)[1:ncol(r.CM.p.ref)]
+
+R0 = 37.5
+cmap.CM.R0.37.5 = cmap(as.vector(r.p.ref), dcut = R0, scut = 0, mask.lower = F)
+CN.R0.37.5.CM = (rowSums(cmap.CM.R0.37.5, na.rm = T) - 2)[1:ncol(r.CM.p.ref)]
+
+R0 = 42.5
+cmap.CM.R0.42.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.42.5.CM = (rowSums(cmap.CM.R0.42.5, na.rm = T) - 2)[1:ncol(r.CM.p.ref)]
+
+R0 = 47.5
+cmap.CM.R0.47.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.47.5.CM = (rowSums(cmap.CM.R0.47.5, na.rm = T) - 2)[1:ncol(r.CM.p.ref)]
+
+R0 = 52.5
+cmap.CM.R0.52.5 = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN.R0.52.5.CM = (rowSums(cmap.CM.R0.52.5, na.rm = T) - 2)[1:ncol(r.CM.p.ref)]
+
+# calculate WCN
+dist.r.CM.p.ref = dist.xyz(t(r.p.ref))
+WCN.CM = c()
+for (i in (1:ncol(r.CM.p.ref))) {
+  WCN.CM[i] = sum(1/(dist.r.CM.p.ref[i, -c(i, (i + ncol(r.CM.p.ref)))]^2))
+}
+
+```
+
+```{r read-identity}
+# read identity
+m.identity = read.csv(file.path(data.dir, paste(family, "_out_m.identity.csv", sep = "")))$V1
+n.sites.mut.exp = n.sites - (m.identity * n.sites / 100)
+
+identity = mean(m.identity)
+n.sites.mut.theo = as.integer((100 - (identity)) * n.sites / 100)
+```
+
+```{r read-data}
+# read data
+## exp
+dri2.exp = read.csv(dri2.exp.fname, header = T)
+site = site.info$site
+rownames(dri2.exp) = paste("exp", rownames(dri2.exp), sep = "")
+
+## mut
+dri2.mut = read.csv(dri2.mut.fname, header = T)
+rownames(dri2.mut) = paste("mut", rownames(dri2.mut), sep = "")
+
+## medium
+dri2.medium = read.csv(dri2.medium.fname, header = T)
+rownames(dri2.medium) = paste("medium", rownames(dri2.medium), sep = "")
+```
+
+```{r prepare-site-data}
+# prepare the data
+## exp
+tdri2.exp = as.data.frame(t(as.matrix(dri2.exp / n.sites.mut.exp)))
+tdri2.exp = cbind(site.info, tdri2.exp)
+siteComparison.exp = melt(tdri2.exp, id.vars = names(site.info), variable.name = "protein", value.name = "dri2")
+
+## mut
+tdri2.mut = as.data.frame(t(as.matrix(dri2.mut / n.sites.mut.theo)))
+tdri2.mut = cbind(site.info, tdri2.mut)
+siteComparison.mut = melt(tdri2.mut, id.vars = names(site.info), variable.name = "protein", value.name = "dri2")
+
+## medium
+tdri2.medium = as.data.frame(t(as.matrix(dri2.medium / n.sites.mut.theo)))
+tdri2.medium = cbind(site.info, tdri2.medium)
+siteComparison.medium = melt(tdri2.medium, id.vars = names(site.info), variable.name = "protein", value.name = "dri2")
+
+# bluild the data.frame
+siteComparison.all.datasets = rbind(data.frame("dataset" = "exp", siteComparison.exp),
+                                    data.frame("dataset" = "mut", siteComparison.mut),
+                                    data.frame("dataset" = "medium", siteComparison.medium))
+
+siteComparison.all.datasets = ddply(siteComparison.all.datasets, c("dataset", "protein"), mutate,
+                     "SD" = dri2,
+                    "RSD" = sqrt(dri2))
+```
+
+
+```{r mean-se-.RSD-vs-site}
+# comparison of .RSD profiles with functional sites
+## prepare dat
+dat = siteComparison.all.datasets
+dat$dataset = revalue(dat$dataset, c("medium" = "selection"))
+dat$dataset = revalue(dat$dataset, c("mut" = "no-selection"))
+
+## dat with means and standard errors
+d = ddply(dat,c("dataset", "resno"), function(x) {
+                mean.RSD = mean(x$RSD, na.rm = T)
+                ndata = sum(!is.na(x$RSD))
+                se.RSD = sd(x$RSD, na.rm = T) / sqrt(ndata)
+                mean.SD = mean(x$SD, na.rm = T)
+                se.SD = sd(x$SD, na.rm = T) / sqrt(ndata)
+                data.frame(mean.RSD, ndata, se.RSD, mean.SD, se.SD)
+})
+
+
+# get subsets
+d.exp = subset(d, dataset == "exp")
+d.mut = subset(d, dataset == "no-selection")
+d.medium = subset(d, dataset == "selection")
+```
+
+### CA comparison
+
+```{r structure-CN-WCN-CA-comparison}
+
+# compare profiles
+
+CA.cor.p = c()
+CA.cor.p.sqrt = c()
+CA.cor.s = c()
+
+## plot
+par(pty = "s")
+
+plot(x = d.exp$mean.SD, y = CN.R0.neg.0.1.CA, xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, CN.R0.neg.0.1.CA)
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor((d.exp$mean.SD), (CN.R0.neg.0.1.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, CN.R0.neg.0.1.CA, method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+######## 
+
+plot(x = d.exp$mean.SD, y = CN.R0.2.5.CA, xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, CN.R0.2.5.CA)
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor((d.exp$mean.SD), (CN.R0.2.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, CN.R0.2.5.CA, method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+######
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.7.5.CA), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.7.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/CN.R0.7.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.7.5.CA), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+#######
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.12.5.CA), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.12.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/CN.R0.12.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.12.5.CA), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+#####
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.17.5.CA), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.17.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/CN.R0.17.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.17.5.CA), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+#####
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.22.5.CA), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.22.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/CN.R0.22.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.22.5.CA), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+#####
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.27.5.CA), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.27.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/CN.R0.27.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.27.5.CA), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+######
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.32.5.CA), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.32.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/CN.R0.32.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.32.5.CA), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+#######
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.37.5.CA), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.37.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/CN.R0.37.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.37.5.CA), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+#####
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.42.5.CA), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.42.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/CN.R0.42.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.42.5.CA), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+#####
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.47.5.CA), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.47.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/CN.R0.47.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.47.5.CA), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+#####
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.52.5.CA), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.52.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/CN.R0.52.5.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.52.5.CA), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+# WCN
+plot(x = d.exp$mean.SD, y = 1/(WCN.CA), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(WCN.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(WCN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (WCN)")
+CA.cor.p = c(CA.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/WCN.CA))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(WCN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (WCN)")
+CA.cor.p.sqrt = c(CA.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(WCN.CA), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(WCN)"),
+                             "R" = r.exp.mean.SD.CN)
+
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (WCN)")
+CA.cor.s = c(CA.cor.s, r.exp.mean.SD.CN)
+
+```
+
+### CM comparison
+
+```{r structure-CN-WCN-CM-comparison}
+
+# compare profiles
+
+CM.cor.p = c()
+CM.cor.p.sqrt = c()
+CM.cor.s = c()
+
+## plot
+par(pty = "s")
+
+plot(x = d.exp$mean.SD, y = CN.R0.neg.0.1.CM, xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, CN.R0.neg.0.1.CM)
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor((d.exp$mean.SD), (CN.R0.neg.0.1.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, CN.R0.neg.0.1.CM, method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+######## 
+
+plot(x = d.exp$mean.SD, y = CN.R0.2.5.CM, xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, CN.R0.2.5.CM)
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor((d.exp$mean.SD), (CN.R0.2.5.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, CN.R0.2.5.CM, method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+######
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.7.5.CM), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.7.5.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/(CN.R0.7.5.CM)))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.7.5.CM), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+#######
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.12.5.CM), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.12.5.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/(CN.R0.12.5.CM)))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.12.5.CM), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+#####
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.17.5.CM), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.17.5.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/(CN.R0.17.5.CM)))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.17.5.CM), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+#####
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.22.5.CM), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.22.5.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/(CN.R0.22.5.CM)))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.22.5.CM), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+#####
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.27.5.CM), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.27.5.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/(CN.R0.27.5.CM)))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.27.5.CM), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+######
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.32.5.CM), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.32.5.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/(CN.R0.32.5.CM)))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.32.5.CM), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+#######
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.37.5.CM), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.37.5.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/(CN.R0.37.5.CM)))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.37.5.CM), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+#####
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.42.5.CM), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.42.5.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/(CN.R0.42.5.CM)))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.42.5.CM), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+#####
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.47.5.CM), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.47.5.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/(CN.R0.47.5.CM)))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.47.5.CM), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+#####
+plot(x = d.exp$mean.SD, y = 1/(CN.R0.52.5.CM), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.52.5.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (CN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/(CN.R0.52.5.CM)))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs CN"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (CN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(CN.R0.52.5.CM), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(CN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (CN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+# WCN
+plot(x = d.exp$mean.SD, y = 1/(WCN.CM), xlab = "<SDi> experimental")
+
+## calculate correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(WCN.CM))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(WCN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (WCN)")
+CM.cor.p = c(CM.cor.p, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(sqrt(d.exp$mean.SD), sqrt(1/(WCN.CM)))
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(WCN)"),
+                             "R" = r.exp.mean.SD.CN)
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sqrt structure (SDi) - sqrt sequence (WCN)")
+CM.cor.p.sqrt = c(CM.cor.p.sqrt, r.exp.mean.SD.CN)
+
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, 1/(WCN.CM), method = "spearman")
+cor.df = data.frame("comparison" = c("<SDi> experimental vs 1/(WCN)"),
+                             "R" = r.exp.mean.SD.CN)
+
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (WCN)")
+CM.cor.s = c(CM.cor.s, r.exp.mean.SD.CN)
+
+```
+
+### All correlations
+
+```{r correlations SDi}
+# build a data frame
+cor = data.frame("CA pearson" = CA.cor.p,
+                 "CA pearson sqrt" = CA.cor.p.sqrt,
+                 "CM pearson" = CM.cor.p,
+                 "CM pearson sqrt" = CM.cor.p.sqrt,
+                 "CA spearman" = CA.cor.s,
+                 "CM spearman" = CM.cor.s)
+rownames(cor) = c("CN R0 = -0.1", "CN R0 = 2.5", "CN R0 = 7.5", "CN R0 = 12.5", "CN R0 = 17.5", "CN R0 = 22.5", "CN R0 = 27.5", "CN R0 = 32.5", "CN R0 = 37.5", "CN R0 = 42.5", "CN R0 = 47.5", "CN R0 = 52.5", "WCN")
+knitr::kable(cor, digits = 2, caption = "Correlation structure (exp SDi) - sequence 1/(CN/WCN)")
+
+# create files to save the data frame
+write.csv(cor, file = file.path("CORRELATIONS", paste(family, "_out_cc_R0s.csv", sep = "")))
+```

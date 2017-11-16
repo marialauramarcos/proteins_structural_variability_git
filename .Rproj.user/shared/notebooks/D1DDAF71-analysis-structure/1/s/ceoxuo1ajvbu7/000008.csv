@@ -1,0 +1,12 @@
+"0","# comparison of z.RSD profiles
+ggplot(d, aes(x = site, y = mean.z.RSD, col = dataset)) +
+  geom_line() +
+  geom_text(data = subset(d, dataset == ""exp"" & mean.z.RSD < -.5), aes(x = site, y = mean.z.RSD, label = site), nudge_y = -.1, size = 1.8) +
+  labs(x = ""site"", y = ""<zRSDi>"") +
+  geom_vline(xintercept = active.sites, show.legend = F) +
+  geom_vline(xintercept = contacts.active.sites, col = ""grey"", show.legend = F) + 
+  scale_colour_manual(name = NULL, values = myColors) 
+"
+"2","Error in (function (filename = ""Rplot%03d.png"", width = 480, height = 480,  : 
+  unable to start png() device
+"

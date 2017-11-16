@@ -1,0 +1,8 @@
+"0","# compare profiles"
+"0","## plot"
+"0","par(pty = ""s"")"
+"2","unable to open file 'C:/Users/María Laura/Desktop/VariabilidadEstructuralProteica/VariabilidadEstructuralProteica/.Rproj.user/shared/notebooks/C5D23CAC-analysis-structure/1/s/cfc6vp87kvo6h_t/_rs_chunk_plot_001.png' for writing"
+"2","opening device failed"
+"2","Error in (function (filename = ""Rplot%03d.png"", width = 480, height = 480,  : 
+  unable to start png() device
+"

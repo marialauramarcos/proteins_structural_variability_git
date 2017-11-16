@@ -1,0 +1,9 @@
+"0","## calculate correlations between profiles"
+"0","r.min.da.CA.CN = cor(CN, m.min.da.CM.CA$min.da.CA)"
+"0","r.min.da.CM.CN = cor(CN, m.min.da.CM.CA$min.da.CM)"
+"0","cor.df = data.frame(""comparison"" = c(""CN vs min.da.CA"", ""CN vs min.da.CM""), ""R"" = c(r.min.da.CA.CN, r.min.da.CM.CN))"
+"0","knitr::kable(cor.df, digits = 2, caption = ""Correlation between CN and the minimal distance to the active site"")"
+"1","pandoc.exe: C:\Users\MarÇða Laura\Desktop\VariabilidadEstructuralProteica\VariabilidadEstructuralProteica\.Rproj.user\shared\notebooks\C5D23CAC-analysis-structure\1\s\ccyd4pptxh7fz_t\_rs_html_30b47b951845.html: openFile: does not exist (No such file or directory)
+"
+"2","Error: pandoc document conversion failed with error 1
+"

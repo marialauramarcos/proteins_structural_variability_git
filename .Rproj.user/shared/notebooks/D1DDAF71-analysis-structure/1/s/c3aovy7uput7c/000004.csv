@@ -1,0 +1,5 @@
+"0","# calculate correlations berween profiles
+d.exp = subset(d, dataset == ""exp"")
+"
+"2","Error in eval(expr, envir, enclos) : object 'dataset' not found
+"

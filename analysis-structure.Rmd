@@ -1,0 +1,737 @@
+---
+title: "Structural Divergence - Cartesian coordinates"
+output: html_document
+---
+
+# Introduction
+We study the evolutionary divergence of proteins using the LF-ENM and comparing simulated mutants with experimental data.
+
+```{r setup, include = FALSE}
+# set chunk options
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = TRUE)
+```
+
+```{r load-packages}
+# load packages
+library(ggplot2)
+library(reshape2)
+library(plyr)
+library(bio3d)
+
+# load functions
+source(file.path(data.dir, "multiplot.R"))
+source(file.path(data.dir, "my-functions.R"))
+source("FUNCTIONS/CalculateSideChainCM.R")
+source("FUNCTIONS/readCA.R") 
+```
+
+```{r set-my-colors}
+# set my colors
+myColors = c("blue", "darkgreen", "darkgreen", "red", "red") 
+names(myColors) <- c("exp", "mut", "no-selection", "medium", "selection")
+```
+
+```{r set-run-variables}
+# set significance factors
+f95 = 1.96
+f99 = 2.6
+f999 = 3.3
+tolerance = 1e-10
+```
+
+```{r set-file-names}
+# set input filenames
+## data
+reference.fname = file.path(data.dir, paste(family, "_ref.txt", sep = ""))
+protein_list.fname = file.path(data.dir, paste(family, "_list.txt", sep = ""))
+site.info.fname = file.path(data.dir, paste(p.ref, "_m.da.ca.csv", sep = ""))
+functional.sites.fname = file.path("DATA", paste(p.ref, "_functionalSites.csv", sep = ""))
+asa.fname = file.path("DATA", paste(p.ref, "_dssp.csv", sep = ""))
+surfase.area.fname = file.path("DATA", "surfase_area.csv")
+
+## profiles to compare
+dri2.exp.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_no.sel_K.analysis_Keff_out_m.exp.norm.dr.squarei.csv", sep = ""))
+dri2.medium.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_medium.sel_K.analysis_Keff_out_m.theo.norm.dr.squarei.csv", sep = ""))
+dri2.mut.fname = file.path(data.dir,paste(family, "_R0_", R0, "_beta_no.sel_K.analysis_Keff_out_m.theo.norm.dr.squarei.csv", sep = ""))
+
+## score
+score.fname = file.path(data.dir, paste(p.ref, "_consurf.csv", sep = ""))
+sim.data.mut.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_no.sel_out_df.data.csv", sep = ""))
+sim.data.medium.sel.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_medium.sel_out_df.data.csv", sep = ""))
+```
+
+```{r set-reference-protein}
+# which is the reference protein?
+reference = as.character(read.table(reference.fname, header = F)[1, 1])
+if (reference != p.ref) {
+  print("Warning: different references")
+}
+```
+
+```{r read-functional-sites}
+# which are the functional sites?
+functional.sites = read.csv(functional.sites.fname, sep = ";")
+active.site.index = functional.sites$index
+description = functional.sites$description
+function.info = data.frame(active.site.index, description)
+```
+
+```{r read-asa-calculate-rsa}
+# read files
+## asa or acc of p.ref
+asa = read.csv(asa.fname, sep = ";")
+ACC = asa$ACC
+AA = asa$AA
+
+## surfase area of AA
+surfase.area = read.csv(surfase.area.fname, sep = ";")
+AA.CODE = surfase.area$X1.LETTER.AA.CODE
+SURFASE.AREA = surfase.area$SURFASE.AREA
+
+# calculate RSA
+RSA = c()
+for (i in (1:length(AA))) {
+  RSA[i] = ACC[i]/SURFASE.AREA[which(AA.CODE == as.character(AA[i]))]
+}
+```
+
+In this case we studied the `r family` family. 
+We used the ENM `r enm` with R0 = `r R0` to generate mutants.
+We used as reference for the ENM the protein with pdb code `r reference`. 
+The active/functional sites of the reference are:
+
+```{r print-info}
+print(function.info)
+```
+
+We simulated `r n.mut.p` mutants of this reference for each protein of the family.
+The `r family` family is of the type `r type` and consists of the following proteins:
+
+```{r set-experimental-protein-names}
+# experimental protein names
+protein.exp = read.table(protein_list.fname, header = F, stringsAsFactors = F)[, 1]
+protein.exp = protein.exp[protein.exp != reference]
+print(protein.exp)
+```
+
+```{r set-site-info}
+# read site information of the reference protein
+site.info = read.csv(site.info.fname, header = T, sep = ",")
+
+# add info to site.info
+d = ddply(site.info, "site", .fun = function(x) data.frame("da" = min(x[, c(-1, -2)])))
+
+# define shells of active.sites site neighborhood
+d$shell = cut(d$da, breaks = c(-.1, 2.5, 7.5, 12.5, 17.5, 22.5, 27.5, 32.5, 37.5, 42.5, 47.5, 52.5, max(d$da)))
+levels(d$shell) = seq(length(levels(d$shell))) - 1 # rename shell levels
+site.info = merge(site.info, d, by = "site")
+
+# read reference pdb and calculate resno, AA, and CN
+reference.pdb.fname = file.path(data.dir,paste(reference, ".pdb", sep = ""))
+ref.pdb = read.pdb(reference.pdb.fname)
+inds = atom.select(ref.pdb, elety = "CA")
+ref.pdb.ca = ref.pdb$atom[inds$atom,]
+r.p.ref = ref.pdb$xyz[inds$xyz]
+cmap.ca = cmap(ref.pdb$xyz[inds$xyz], dcut = R0, scut = 0, mask.lower = F)
+CN = rowSums(cmap.ca, na.rm = T) - 1 # diag(cmap.ca) returned by cmap is 1
+n.sites = length(CN)
+AA = ref.pdb.ca$resid
+resno = ref.pdb.ca$resno
+
+# correct active site index
+active.site.index.n = c()
+for (i in (1:length(active.site.index))) {active.site.index.n = c(active.site.index.n, which(resno == active.site.index[i]))}
+active.sites = active.site.index.n
+
+# read CM data 
+if (data.dir == "OUT/out_subset_CM_ANM") { 
+
+  # Read PDB of p.ref
+  pdb.ca = ReadCA(reference.pdb.fname, chain.p.ref)
+  r.ca.p.ref = pdb.ca$xyz.calpha
+  n.aa = pdb.ca$n.sites
+  
+  r.CM.p.ref = CalculateSideChainCM(reference.pdb.fname, chain.p.ref)
+  n.CM = ncol(r.CM.p.ref)
+  r.p.ref = c(ref.pdb$xyz[inds$xyz], as.vector(r.CM.p.ref)) 
+
+  cmap.CM = cmap(r.p.ref, dcut = R0, scut = 0, mask.lower = F)[1:n.aa, ]
+  CN = rowSums(cmap.CM, na.rm = T) - 2
+}
+
+# build pdb.info
+pdb.info = data.frame(resno, AA, CN)
+names(pdb.info) = c("resno", "AA", paste("CN", as.character(R0), sep = ""))
+b.factor = as.numeric(ref.pdb$atom[inds$atom, c("b")])    
+
+# add pdb.info to site.info
+site.info = cbind(site.info, pdb.info)
+
+# find the active site contacts
+contacts.active.sites = d$site[d$shell == 1]
+```
+
+```{r calculate-MSF-p.ref}
+# calculate MSF (Mean Square Fluctuation) of p.ref
+## calculate ENM
+ENMK.p.ref = CalculateENMKeff(matrix(r.p.ref, nrow = 3), 
+                              seq(1:n.sites), 
+                              c(), 
+                              R0, 
+                              tolerance, 
+                              K.analysis)
+## get cov matrix
+cov.p.ref = ENMK.p.ref$cov
+
+## get the diagonal of the cov matrix
+diag.p.ref = diag(cov.p.ref)
+
+## calculate the factor to split the diagonal
+factor = sort(rep(seq(1:n.sites), 3))
+
+## split the diagonal
+s.diag.p.ref = split(diag.p.ref, factor)
+
+## create a matrix to save the data
+MSF.p.ref = matrix(nrow = 1, ncol = n.sites)
+
+## start a loop to calculate sums for each site
+for (i in (1:n.sites)) {
+  MSF.p.ref[, i] = sum(unlist(s.diag.p.ref[i]), use.names = F)
+}
+ 
+## transform to a vector
+MSF.p.ref = as.vector(MSF.p.ref)
+```
+
+```{r read-data}
+# read data
+## exp
+dri2.exp = read.csv(dri2.exp.fname, header = T)
+site = site.info$site
+dri2.exp = dri2.exp[1:length(protein.exp), site]
+rownames(dri2.exp) = protein.exp
+
+## mut
+dri2.mut = read.csv(dri2.mut.fname, header = T)
+rownames(dri2.mut) = paste("mut", rownames(dri2.mut), sep = "")
+
+## medium
+dri2.medium = read.csv(dri2.medium.fname, header = T)
+rownames(dri2.medium) = paste("medium", rownames(dri2.medium), sep = "")
+```
+
+```{r read-identity}
+# read identity
+m.identity = read.csv(file.path(data.dir, paste(family, "_out_m.identity.csv", sep = "")))$V1
+n.sites.mut.exp = n.sites - (m.identity * n.sites / 100)
+
+identity = mean(m.identity)
+n.sites.mut.theo = as.integer((100 - (identity)) * n.sites / 100)
+```
+
+# Structural divergence along sites
+
+Here we study how structural divergence varies from site to site. We compare simulated data with empirical data. 
+
+```{r prepare-site-data}
+# prepare the data
+## exp
+tdri2.exp = as.data.frame(t(as.matrix(dri2.exp)))
+tdri2.exp = cbind(site.info, tdri2.exp)
+siteComparison.exp = melt(tdri2.exp, id.vars = names(site.info), variable.name = "protein", value.name = "dri2")
+
+## mut
+tdri2.mut = as.data.frame(t(as.matrix(dri2.mut)))
+tdri2.mut = cbind(site.info, tdri2.mut)
+siteComparison.mut = melt(tdri2.mut, id.vars = names(site.info), variable.name = "protein", value.name = "dri2")
+
+## medium
+tdri2.medium = as.data.frame(t(as.matrix(dri2.medium)))
+tdri2.medium = cbind(site.info, tdri2.medium)
+siteComparison.medium = melt(tdri2.medium, id.vars = names(site.info), variable.name = "protein", value.name = "dri2")
+
+# bluild the data.frame
+siteComparison.all.datasets = rbind(data.frame("dataset" = "exp", siteComparison.exp),
+                                    data.frame("dataset" = "mut", siteComparison.mut),
+                                    data.frame("dataset" = "medium", siteComparison.medium))
+
+siteComparison.all.datasets = ddply(siteComparison.all.datasets, c("dataset", "protein"), mutate,
+                       "SD" = dri2,
+                     "z.SD" = vscale(dri2),
+                      "RSD" = sqrt(dri2),
+                    "z.RSD" = vscale(RSD))
+```
+
+### SDi vs site
+
+To measure structural divergence we use SDi profiles. The following plot compares the mean SDi profiles, including standard errors (with .999 confidence level for the mean).
+
+```{r-mean-se-RSD/SD-vs-site, fig.cap = "Black lines are the active sites and grey lines are their contacts"}
+# comparison of SD profiles with functional sites
+## prepare dat
+dat = siteComparison.all.datasets
+dat$dataset = revalue(dat$dataset, c("medium" = "selection"))
+dat$dataset = revalue(dat$dataset, c("mut" = "no-selection"))
+
+## dat with means and standard errors
+d = ddply(dat,c("dataset", "site"), function(x) {
+                mean.z.RSD = mean(x$z.RSD, na.rm = T)
+                mean.RSD = mean(x$RSD, na.rm = T)
+                ndata = sum(!is.na(x$z.RSD))
+                se.z.RSD = sd(x$z.RSD, na.rm = T) / sqrt(ndata)
+                se.RSD = sd(x$RSD, na.rm = T) / sqrt(ndata)
+                mean.z.SD = mean(x$z.SD, na.rm = T)
+                mean.SD = mean(x$SD, na.rm = T)
+                se.z.SD = sd(x$z.SD, na.rm = T) / sqrt(ndata)
+                se.SD = sd(x$SD, na.rm = T) / sqrt(ndata)
+                data.frame(mean.z.RSD, 
+                           mean.RSD, 
+                           ndata, 
+                           se.z.RSD, 
+                           se.RSD, 
+                           mean.z.SD, 
+                           mean.SD, 
+                           se.z.SD, 
+                           se.SD)
+})
+
+# save d
+write.csv(d, file = file.path(data.dir, paste(family, "_", p.ref, "_R0_", R0, "d.SD.csv", sep = "")))
+
+## prepare plots with mean profiles and deviations SD
+p = ggplot(d, aes(x = site, y = mean.SD, col = dataset, fill = dataset)) +
+    geom_line() +
+    geom_ribbon(aes(ymin = mean.SD - f95 * se.SD, ymax = mean.SD + se.SD), alpha = .4, show.legend = F) +
+    geom_vline(xintercept = c(active.sites), show.legend = F) +
+    geom_vline(xintercept = contacts.active.sites, col = "grey", show.legend = F) +
+    labs(x = "site", y = "<SDi>") +
+    scale_colour_manual(name = NULL, values = myColors) + 
+    scale_fill_manual(name = NULL, values = myColors)
+
+## plot separate and comparative plots
+p.facet = p + facet_grid(dataset~., switch = "y") + theme(legend.position = "bottom")
+p.facet
+
+## plot superimposed plots
+p + theme(legend.position = "bottom")
+```
+
+### Correlation between SDi profiles
+
+```{r comparisons-between-profiles}
+
+# comparison of SDi profiles
+
+## get subsets
+d.exp = subset(d, dataset == "exp")
+d.mut = subset(d, dataset == "no-selection")
+d.medium = subset(d, dataset == "selection")
+
+## calculate Pearson correlation
+r.exp.mut = cor(d.exp$mean.SD, d.mut$mean.SD)
+r.exp.medium = cor(d.exp$mean.SD, d.medium$mean.SD)
+r.mut.medium = cor(d.mut$mean.SD, d.medium$mean.SD)
+
+cor.df = data.frame("comparison" = c("exp vs no-selection", "exp vs selection", "no-selection vs selection"),
+                    "R" = c(r.exp.mut, r.exp.medium, r.mut.medium))
+
+knitr::kable(cor.df, digits = 2, caption = "Pearson correlation between <SDi> profiles")
+
+## calculate Spearman correlation
+r.exp.mut = cor(d.exp$mean.SD, d.mut$mean.SD, method = "spearman")
+r.exp.medium = cor(d.exp$mean.SD, d.medium$mean.SD, method = "spearman")
+r.mut.medium = cor(d.mut$mean.SD, d.medium$mean.SD, method = "spearman")
+
+cor.df = data.frame("comparison" = c("exp vs no-selection", "exp vs selection", "no-selection vs selection"),
+                    "R" = c(r.exp.mut, r.exp.medium, r.mut.medium))
+
+knitr::kable(cor.df, digits = 2, caption = "Spearman correlation between <SDi> profiles")
+
+## plot exp vs simulated SDi profiles
+par(pty = "s")
+
+plot(x = d.exp$mean.SD, 
+     y = d.mut$mean.SD, 
+     xlab = "<SDi> experimental", 
+     ylab = "<SDi> no-selection", 
+     xlim = c(min(c(d.exp$mean.SD, d.mut$mean.SD)), max(c(d.exp$mean.SD, d.mut$mean.SD))),
+     ylim = c(min(c(d.exp$mean.SD, d.mut$mean.SD)), max(c(d.exp$mean.SD, d.mut$mean.SD))))
+points(x = as.numeric(d.exp$mean.SD)[active.sites], y = as.numeric(d.mut$mean.SD)[active.sites], col = "yellow")
+points(x = as.numeric(d.exp$mean.SD)[contacts.active.sites], y = as.numeric(d.mut$mean.SD)[contacts.active.sites], col = "green")
+
+plot(x = d.exp$mean.SD, 
+     y = d.medium$mean.SD, 
+     xlab = "<SDi> experimental", 
+     ylab = "<SDi> selection", 
+     xlim = c(min(c(d.exp$mean.SD, d.medium$mean.SD)), max(c(d.exp$mean.SD, d.medium$mean.SD))),
+     ylim = c(min(c(d.exp$mean.SD, d.medium$mean.SD)), max(c(d.exp$mean.SD, d.medium$mean.SD))))
+points(x = as.numeric(d.exp$mean.SD)[contacts.active.sites], y = as.numeric(d.medium$mean.SD)[contacts.active.sites], col = "green")
+points(x = as.numeric(d.exp$mean.SD)[active.sites], y = as.numeric(d.medium$mean.SD)[active.sites], col = "yellow")
+
+plot(x = d.mut$mean.SD, 
+     y = d.medium$mean.SD, 
+     xlab = "<SDi> no-selection", 
+     ylab = "<SDi> selection", 
+     xlim = c(min(c(d.mut$mean.SD, d.medium$mean.SD)), max(c(d.mut$mean.SD, d.medium$mean.SD))),
+     ylim = c(min(c(d.mut$mean.SD, d.medium$mean.SD)), max(c(d.mut$mean.SD, d.medium$mean.SD))))
+points(x = as.numeric(d.mut$mean.SD)[contacts.active.sites], y = as.numeric(d.medium$mean.SD)[contacts.active.sites], col = "green")
+points(x = as.numeric(d.mut$mean.SD)[active.sites], y = as.numeric(d.medium$mean.SD)[active.sites], col = "yellow")
+```
+
+### Comparison between sqrt SDi profiles
+
+```{r comparisons-between-sqrt-profiles, fig.height=3}
+# comparison of sqrt SD profiles
+
+# get subsets
+d.exp = subset(d, dataset == "exp")
+d.mut = subset(d, dataset == "no-selection")
+d.medium = subset(d, dataset == "selection")
+
+# calculate Pearson correlation
+r.exp.mut = cor(sqrt(d.exp$mean.SD), sqrt(d.mut$mean.SD))
+r.exp.medium = cor(sqrt(d.exp$mean.SD), sqrt(d.medium$mean.SD))
+r.mut.medium = cor(sqrt(d.mut$mean.SD), sqrt(d.medium$mean.SD))
+
+cor.df = data.frame("comparison" = c("exp vs no-selection", "exp vs selection", "no-selection vs selection"),
+                    "R" = c(r.exp.mut, r.exp.medium, r.mut.medium))
+
+knitr::kable(cor.df, digits = 2, caption = "Pearson correlation between sqrt <SDi> profiles")
+
+## plot exp vs simulated sqrt SDi profiles
+par(pty = "s")
+
+layout(matrix(1:3, 1, 3))
+
+plot(x = scale(sqrt(d.mut$mean.SD)), 
+     y = scale(sqrt(d.exp$mean.SD)), 
+     xlab = "sqrt <SDi> no-selection", 
+     ylab = "sqrt <SDi> experimental") 
+lm = lm(sqrt(d.exp$mean.SD) ~ sqrt(d.mut$mean.SD))
+abline(lm)
+legend("topleft", paste ("r = ", round(r.exp.mut, digits = 2)), bty = "n")
+
+plot(x = scale(sqrt(d.medium$mean.SD)), 
+     y = scale(sqrt(d.exp$mean.SD)), 
+     xlab = "sqrt <SDi> selection", 
+     ylab = "sqrt <SDi> experimental") 
+lm = lm(sqrt(d.exp$mean.SD) ~ sqrt(d.medium$mean.SD))
+abline(lm)
+legend("topleft", paste ("r = ", round(r.exp.medium, digits = 2)), bty = "n")
+
+plot(x = scale(sqrt(d.mut$mean.SD)), 
+     y = scale(sqrt(d.medium$mean.SD)), 
+     xlab = "sqrt <SDi> no-selection", 
+     ylab = "sqrt <SDi> selection")
+lm = lm(sqrt(d.medium$mean.SD) ~ sqrt(d.mut$mean.SD))
+abline(lm)
+legend("topleft", paste ("r = ", round(r.mut.medium, digits = 2)), bty = "n")
+```
+
+```{r write-pdbs} 
+# write pdb files with mean.SDi as b-factor for building images
+
+## read pdb CAs
+pdb.xyz.ca = ReadCA(reference.pdb.fname, chain.p.ref)$xyz
+
+## experimental
+exp.mean.SD.vec <- vec2resno(as.vector(scale(sqrt(d.exp$mean.SD))), 1:ncol(pdb.xyz.ca))
+write.pdb(xyz = c(pdb.xyz.ca), b = exp.mean.SD.vec, file =  file.path(data.dir, paste(p.ref, "_exp.pdb", sep = "")))
+
+## mut
+mut.mean.SD.vec <- vec2resno(as.vector(scale(sqrt(d.mut$mean.SD))), 1:ncol(pdb.xyz.ca))
+write.pdb(xyz = c(pdb.xyz.ca), b = mut.mean.SD.vec, file = file.path(data.dir, paste(p.ref, "_mut.pdb", sep = "")))
+
+## mut + sel / medium
+medium.mean.SD.vec <- vec2resno(as.vector(scale(sqrt(d.medium$mean.SD))), 1:ncol(pdb.xyz.ca))
+write.pdb(xyz = c(pdb.xyz.ca), b = medium.mean.SD.vec, file = file.path(data.dir, paste(p.ref, "_medium.pdb", sep = "")))
+```
+
+### Sequence (1/CN) - structure (SDi) comparison
+In this section we compare theoretical and experimental structural divergence profiles with CN.  
+```{r structure-CN-comparison}
+# save CN
+write.csv(CN, file = file.path(data.dir, paste(family, "_", p.ref, "_R0_", R0, "CN.csv", sep = "")))
+
+# compare profiles
+## plot
+par(pty = "s")
+
+plot(x = d.exp$mean.SD, y = (1/CN), xlab = "<SDi> experimental")
+plot(x = d.mut$mean.SD, y = (1/CN), xlab = "<SDi> no-selection")
+plot(x = d.medium$mean.SD, y = (1/CN), xlab = "<SDi> selection")
+
+## calculate Person correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, (1/CN))
+r.mut.mean.SD.CN = cor(d.mut$mean.SD, (1/CN))
+r.medium.mean.SD.CN = cor(d.medium$mean.SD, (1/CN))
+
+cor.df = data.frame("comparison" = c("SDi experimental vs 1/CN", "SDi no-selection vs 1/CN", "SDi selection vs 1/CN"),
+                    "R" = c(r.exp.mean.SD.CN , r.mut.mean.SD.CN, r.medium.mean.SD.CN))
+
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (1/CN)")
+
+## calculate Spearman correlations
+r.exp.mean.SD.CN = cor(d.exp$mean.SD, (1/CN), method = "spearman")
+r.mut.mean.SD.CN = cor(d.mut$mean.SD, (1/CN), method = "spearman")
+r.medium.mean.SD.CN = cor(d.medium$mean.SD, (1/CN), method = "spearman")
+
+cor.df = data.frame("comparison" = c("SDi experimental vs 1/CN", "SDi no-selection vs 1/CN", "SDi selection vs 1/CN"),
+                    "R" = c(r.exp.mean.SD.CN , r.mut.mean.SD.CN, r.medium.mean.SD.CN))
+
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (1/CN)")
+```
+
+### Sequence RSA - structure (SDi) comparison
+In this section we compare theoretical and experimental structural divergence profiles with RSA calculated with DSSP.  
+
+```{r structure-RSA-comparison}
+# save RSA
+write.csv(RSA, file = file.path(data.dir, paste(family, "_", p.ref, "_R0_", R0, "RSA.csv", sep = "")))
+
+# compare profiles
+## plot
+par(pty = "s")
+
+plot(x = d.exp$mean.SD, y = RSA, xlab = "<SDi> experimental")
+plot(x = d.mut$mean.SD, y = RSA, xlab = "<SDi> no-selection")
+plot(x = d.medium$mean.SD, y = RSA, xlab = "<SDi> selection")
+
+## calculate Person correlations
+r.exp.mean.SD.RSA = cor(d.exp$mean.SD, RSA)
+r.mut.mean.SD.RSA = cor(d.mut$mean.SD, RSA)
+r.medium.mean.SD.RSA = cor(d.medium$mean.SD, RSA)
+
+cor.df = data.frame("comparison" = c("SDi experimental vs RSA", "SDi no-selection vs RSA", "SDi selection vs RSA"),
+                    "R" = c(r.exp.mean.SD.RSA , r.mut.mean.SD.RSA, r.medium.mean.SD.RSA))
+
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence RSA")
+
+## calculate Spearman correlations
+r.exp.mean.SD.RSA = cor(d.exp$mean.SD, RSA, method = "spearman")
+r.mut.mean.SD.RSA = cor(d.mut$mean.SD, RSA, method = "spearman")
+r.medium.mean.SD.RSA = cor(d.medium$mean.SD, RSA, method = "spearman")
+
+cor.df = data.frame("comparison" = c("SDi experimental vs RSA", "SDi no-selection vs RSA", "SDi selection vs RSA"),
+                    "R" = c(r.exp.mean.SD.RSA , r.mut.mean.SD.RSA, r.medium.mean.SD.RSA))
+
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence RSA")
+```
+
+### Sequence MSF - structure (SDi) comparison
+In this section we compare theoretical and experimental structural divergence profiles with MSF calculated with the ANM.  
+
+```{r structure-MSF-comparison}
+# save MSF
+write.csv(MSF.p.ref, file = file.path(data.dir, paste(family, "_", p.ref, "_R0_", R0, "MSF.csv", sep = "")))
+
+# compare profiles
+## plot
+par(pty = "s")
+
+plot(x = d.exp$mean.SD, y = MSF.p.ref, xlab = "<SDi> experimental")
+plot(x = d.mut$mean.SD, y = MSF.p.ref, xlab = "<SDi> no-selection")
+plot(x = d.medium$mean.SD, y = MSF.p.ref, xlab = "<SDi> selection")
+
+## calculate Person correlations
+r.exp.mean.SD.MSF = cor(d.exp$mean.SD, MSF.p.ref)
+r.mut.mean.SD.MSF = cor(d.mut$mean.SD, MSF.p.ref)
+r.medium.mean.SD.MSF = cor(d.medium$mean.SD, MSF.p.ref)
+
+cor.df = data.frame("comparison" = c("SDi experimental vs MSF.p.ref", "SDi no-selection vs MSF.p.ref", "SDi selection vs MSF.p.ref"),
+                    "R" = c(r.exp.mean.SD.MSF , r.mut.mean.SD.MSF, r.medium.mean.SD.MSF))
+
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence MSF.p.ref")
+
+## calculate Spearman correlations
+r.exp.mean.SD.MSF = cor(d.exp$mean.SD, MSF.p.ref, method = "spearman")
+r.mut.mean.SD.MSF = cor(d.mut$mean.SD, MSF.p.ref, method = "spearman")
+r.medium.mean.SD.MSF = cor(d.medium$mean.SD, MSF.p.ref, method = "spearman")
+
+cor.df = data.frame("comparison" = c("SDi experimental vs MSF.p.ref", "SDi no-selection vs MSF.p.ref", "SDi selection vs MSF.p.ref"),
+                    "R" = c(r.exp.mean.SD.MSF , r.mut.mean.SD.MSF, r.medium.mean.SD.MSF))
+
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence MSF.p.ref")
+```
+
+```{r sqrt-structure-MSF-comparison, fig.height=3}
+# extract means
+d.exp = subset(d, dataset == "exp")
+d.mut = subset(d, dataset == "no-selection")
+d.medium = subset(d, dataset == "selection")
+
+## correlations
+r.exp = cor(sqrt(d.exp$mean.SD), sqrt(MSF.p.ref))
+r.medium = cor(sqrt(d.medium$mean.SD), sqrt(MSF.p.ref))
+r.mut = cor(sqrt(d.mut$mean.SD), sqrt(MSF.p.ref))
+
+## plots
+par(pty = "s")
+
+layout(matrix(1:3, 1, 3))
+
+plot(y = (sqrt(d.exp$mean.SD)), x = sqrt(MSF.p.ref), ylab = "sqrt <SDi> experimental", xlab = "sqrt MSFi")
+lm = lm((sqrt(d.exp$mean.SD)) ~ sqrt(MSF.p.ref))
+legend("topleft", paste ("r = ", round(r.exp, digits = 2)), bty = "n")
+
+plot(y = (sqrt(d.mut$mean.SD)), x = sqrt(MSF.p.ref), ylab = "sqrt <SDi> no-selection", xlab = "sqrt MSFi")
+lm = lm((d.mut$mean.SD) ~ MSF.p.ref)
+legend("topleft", paste ("r = ", round(r.mut, digits = 2)), bty = "n")
+
+plot(y = (sqrt(d.medium$mean.SD)), x = sqrt(MSF.p.ref), ylab = "sqrt <SDi> selection", xlab = "sqrt MSFi")
+lm = lm(d.medium$mean.SD ~ MSF.p.ref)
+legend("topleft", paste ("r = ", round(r.medium, digits = 2)), bty = "n")
+```
+
+### Sequence b-factor - structure (SDi) comparison
+In this section we compare theoretical and experimental structural divergence profiles with b-factor obtained from the pdb.
+
+
+```{r structure-b.factor-comparison}
+
+# compare profiles
+## plot
+par(pty = "s")
+
+plot(x = d.exp$mean.SD, y = b.factor, xlab = "<SDi> experimental")
+plot(x = d.mut$mean.SD, y = b.factor, xlab = "<SDi> no-selection")
+plot(x = d.medium$mean.SD, y = b.factor, xlab = "<SDi> selection")
+
+## calculate Person correlations
+r.exp.mean.SD.B = cor(d.exp$mean.SD, b.factor)
+r.mut.mean.SD.B = cor(d.mut$mean.SD, b.factor)
+r.medium.mean.SD.B = cor(d.medium$mean.SD, b.factor)
+
+cor.df = data.frame("comparison" = c("SD experimental vs b.factor", "SD no-selection vs b.factor", "SD selection vs b.factor"),
+                    "R" = c(r.exp.mean.SD.B , r.mut.mean.SD.B, r.medium.mean.SD.B))
+
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SD) - sequence b.factor")
+
+## calculate Spearman correlations
+r.exp.mean.SD.B = cor(d.exp$mean.SD, b.factor, method = "spearman")
+r.mut.mean.SD.B = cor(d.mut$mean.SD, b.factor, method = "spearman")
+r.medium.mean.SD.B = cor(d.medium$mean.SD, b.factor, method = "spearman")
+
+cor.df = data.frame("comparison" = c("SD experimental vs b.factor", "SD no-selection vs b.factor", "SD selection vs b.factor"),
+                    "R" = c(r.exp.mean.SD.B , r.mut.mean.SD.B, r.medium.mean.SD.B))
+
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SD) - sequence b.factor")
+```
+
+### Sequence b-factor - sequence MSF comparison
+In this section we compare theoretical and experimental b-factors
+
+```{r MSF-b.factor-comparison}
+
+# compare profiles
+## plot
+par(pty = "s")
+
+plot(x = MSF.p.ref, y = b.factor)
+
+## calculate Person correlations
+r.MSF.p.ref.b = cor(MSF.p.ref, b.factor)
+
+cor.df = data.frame("comparison" = "MSF vs b.factor",
+                             "R" = r.MSF.p.ref.b)
+
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation sequence MSF - sequence b.factor")
+
+## calculate Spearman correlations
+r.MSF.p.ref.b = cor(MSF.p.ref, b.factor, method = "spearman")
+
+cor.df = data.frame("comparison" = "MSF vs b.factor",
+                             "R" = r.MSF.p.ref.b)
+
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation sequence MSF - sequence b.factor")
+```
+
+### Sequence comparison
+
+In this section we compare theoretical sequence divergence profiles with sequence scores obtained from ConsurfDB. To obtain theoretical profiles, for each selection regimen, we calculated the number of times we had mutated each site and divided this number by the number of times we had tried a mutation at the site. 
+
+```{r sequence-profiles-comparison}
+# read experimental data obtained from ConsurfDB
+consurf = read.csv(score.fname, sep = ";")
+score = consurf$SCORE
+
+# read simulated data
+## no sel
+sim.data.mut = read.csv(sim.data.mut.fname)
+mut.site.mut = sim.data.mut$site
+accept.mut = sim.data.mut$accept
+
+## medium sel
+sim.data.medium.sel = read.csv(sim.data.medium.sel.fname)
+mut.site.medium.sel = sim.data.medium.sel$site
+accept.medium.sel = sim.data.medium.sel$accept
+
+# calculate p.accept of simulated data
+p.accept.mut = c()
+p.accept.medium.sel = c()
+
+# correct indexes
+if (data.dir == "OUT/out_subset_CM_ANM") {
+  mut.site.mut = mut.site.mut - n.sites
+  mut.site.medium.sel = mut.site.medium.sel - n.sites
+  CN.CM = sim.data.mut$CN
+  CN = c()
+
+  for (i in (1:n.sites)) {
+    CN[i] = CN.CM[which(mut.site.mut == i)][1]
+  }
+}
+  
+for (i in (1:n.sites)) {
+  accept.mut.i = accept.mut[which(mut.site.mut == i)]
+  p.accept.mut.i = mean(accept.mut.i)
+  p.accept.mut[i] = p.accept.mut.i
+  
+  accept.medium.sel.i = accept.medium.sel[which(mut.site.medium.sel == i)]
+  p.accept.medium.sel.i = mean(accept.medium.sel.i)
+  p.accept.medium.sel[i] = p.accept.medium.sel.i
+}
+
+# compare exp vs no sel profiles
+## plot
+par(pty = "s")
+
+plot(x = p.accept.mut, y = log(CN))
+plot(x = p.accept.mut, y = score)
+plot(x = score, y = log(CN)) 
+
+## calculate corelations
+r.p.accept.mut.CN = cor(p.accept.mut, log(CN))
+r.p.accept.mut.score = cor(p.accept.mut, score)
+r.score.CN = cor(score, log(CN))
+
+cor.df = data.frame("comparison" = c("paccept no-selection vs log(CN)", "paccept no-selection vs score", "score vs log(CN)"),
+                    "R" = c(r.p.accept.mut.CN , r.p.accept.mut.score, r.score.CN))
+
+knitr::kable(cor.df, digits = 2, caption = "Pearson correlation between sequence profiles")
+
+print("<paccept no-selection>")
+print(mean(p.accept.mut))
+
+# compare exp vs medium sel profiles
+## plot
+par(pty = "s")
+
+plot(x = p.accept.medium.sel, y = log(CN))
+plot(x = p.accept.medium.sel, y = score)
+plot(x = score, y = log(CN))
+
+## calculate corelations
+r.p.accept.medium.sel.CN = cor(p.accept.medium.sel, log(CN))
+r.p.accept.medium.sel.score = cor(p.accept.medium.sel, score)
+r.score.CN = cor(score, log(CN))
+
+cor.df = data.frame("comparison" = c("paccept selection vs log(CN)", "paccept selection vs score", "score vs log(CN)"),
+                    "R" = c(r.p.accept.medium.sel.CN , r.p.accept.medium.sel.score, r.score.CN))
+
+knitr::kable(cor.df, digits = 2, caption = "Pearson correlation between sequence profiles")
+
+print("<paccept selection (medium selection)>")
+print(mean(p.accept.medium.sel))
+```

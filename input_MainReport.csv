@@ -1,0 +1,9 @@
+family,type,p.ref,mut.model,enm,n.mut.p,R0.CA,R0.CM,K.analysis,chain.p.ref
+sh3,small beta,1lcka,LFENM,ANM,10,12.5,10,Keff,F
+snakesToxin,small,1ntx,LFENM,ANM,10,12.5,10,Keff,S
+globins,alpha,1a4fb,LFENM,ANM,10,12.5,10,Keff,d
+az,beta,1bxva,LFENM,ANM,10,12.5,10,Keff,G
+phoslip,alpha,1jiaa,LFENM,ANM,10,12.5,10,Keff,L
+fabp,beta,1hmt,LFENM,ANM,10,12.5,10,Keff,D
+rrm,alpha and beta,1fxla2,LFENM,ANM,10,12.5,10,Keff,G
+serinProteases,beta,1mcta,LFENM,ANM,10,12.5,10,Keff,G

@@ -1,0 +1,11 @@
+base
+knitr
+markdown
+ggplot2
+reshape2
+plyr
+SparseM
+quantreg
+bio3d
+png
+seqinr

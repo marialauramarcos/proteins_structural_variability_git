@@ -1,0 +1,220 @@
+---
+title: "Comparisons LPD - SDi experimental "
+---
+
+# Introduction
+In this report we compare different LPD measures (their inverse, 1/CN and 1/WCN), with SDi experimental profiles. We do this because theoretical SDi is proportional to 1/CN or 1/WCN (depending on the ENM used to generate mutants). Then, using different R0 to calculate CN, we can get an idea of the results that will come from the simulations and choose some values of R0 to generate mutants. 
+Theoretical SDi of ANM  is proportional to 1/CN with an r of aprox. 0.97, meanwhile theoretical SDi of pfANM  is proportional to 1/WCN with a lower value of r.
+To calculate LPD measures, we used only CA of aa ("CA"), and both CA and CM ("CM"). 
+We compare the results obtained for different families. To do this, we use correlations calculated by the program "analysis-structure-CN-WCN-exp.Rmd".
+The first 6 figures correrpond to the mean correlation between 1/LPD (CN or WCN) and experimental SDi, where the mean is calculated over the families. The last 6 figures show in different colors the values obtanied for each family.
+
+p = pearson correlation coef,
+s = spearman correlation coef.
+
+```{r setup, include = FALSE}
+# set chunk options
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r load-packages}
+# load packages
+library(ggplot2)
+```
+
+```{r main, fig.width=14}
+### PROGRAM ###
+
+# read input
+input.fname <- "input_MainReport.csv"
+input <- read.csv(input.fname)
+
+# start matrices
+CA.cor.s = c()
+CM.cor.s = c()
+
+CA.cor.p = c()
+CM.cor.p = c()
+
+CA.cor.p.sqrt = c()
+CM.cor.p.sqrt = c()
+
+print("families")
+# satart a loop for each family
+for (f in (1:nrow(input))) { 
+  family <- as.character(input$family)[f]
+  print(family)
+  
+  # read the data frame
+  cc = read.csv(file = file.path("CORRELATIONS", paste(family, "_out_cc_R0s.csv", sep = "")))
+  
+  # get CA and CM spearman cc for f
+  CA.cor.s = c(CA.cor.s, cc$CA.spearman)
+  CM.cor.s = c(CM.cor.s, cc$CM.spearman)
+  
+  # get CA and CM pearson cc for f
+  CA.cor.p = c(CA.cor.p, cc$CA.pearson)
+  CM.cor.p = c(CM.cor.p, cc$CM.pearson)
+  
+  # get CA and CM pearson sqrt cc for f
+  CA.cor.p.sqrt = c(CA.cor.p.sqrt, cc$CA.pearson.sqrt)
+  CM.cor.p.sqrt = c(CM.cor.p.sqrt, cc$CM.pearson.sqrt)
+}
+
+# modify dimensions
+CA.cor.s = matrix(CA.cor.s, nrow = nrow(cc))
+CM.cor.s = matrix(CM.cor.s, nrow = nrow(cc))
+CA.cor.p = matrix(CA.cor.p, nrow = nrow(cc))
+CM.cor.p = matrix(CM.cor.p, nrow = nrow(cc))
+CA.cor.p.sqrt = matrix(CA.cor.p.sqrt, nrow = nrow(cc))
+CM.cor.p.sqrt = matrix(CM.cor.p.sqrt, nrow = nrow(cc))
+
+# set colnames and rownames
+colnames(CA.cor.s) = input$family
+rownames(CA.cor.s) = cc$X
+colnames(CM.cor.s) = input$family
+rownames(CM.cor.s) = cc$X
+colnames(CA.cor.p) = input$family
+rownames(CA.cor.p) = cc$X
+colnames(CM.cor.p) = input$family
+rownames(CM.cor.p) = cc$X
+colnames(CA.cor.p.sqrt) = input$family
+rownames(CA.cor.p.sqrt) = cc$X
+colnames(CM.cor.p.sqrt) = input$family
+rownames(CM.cor.p.sqrt) = cc$X
+
+# calculate means
+mean.CA.cor.s = rowMeans(CA.cor.s, na.rm = T)
+mean.CM.cor.s = rowMeans(CM.cor.s, na.rm = T)
+mean.CA.cor.p = rowMeans(CA.cor.p, na.rm = T)
+mean.CM.cor.p = rowMeans(CM.cor.p, na.rm = T)
+mean.CA.cor.p.sqrt = rowMeans(CA.cor.p.sqrt, na.rm = T)
+mean.CM.cor.p.sqrt = rowMeans(CM.cor.p.sqrt, na.rm = T)
+
+# build a data frame
+df.mean = data.frame(mean.CA.cor.s, mean.CM.cor.s, mean.CA.cor.p, mean.CM.cor.p, mean.CA.cor.p.sqrt, mean.CM.cor.p.sqrt, R0 = cc$X)
+df.mean$order = c(1:length(df.mean$R0))
+
+# make plots
+layout(matrix(1:4, 4, 1))
+
+ggplot(df.mean, aes(y = mean.CA.cor.s, x = reorder(R0, order))) +
+  geom_point() +  
+  geom_text(aes(label = round(mean.CA.cor.s, digits = 3), vjust = -1)) +
+  coord_cartesian(ylim = c(0, 0.8)) +
+  labs(x = "LPD", y = "<cc (1/LPD CA, SDi_exp) s>")
+
+ggplot(df.mean, aes(y = mean.CM.cor.s, x = reorder(R0, order))) +
+  geom_point() +  
+  geom_text(aes(label = round(mean.CM.cor.s, digits = 3), vjust = -1)) +
+  coord_cartesian(ylim = c(0, 0.8)) +
+  labs(x = "LPD", y = "<cc (1/LPD CM, SDi_exp) s>")
+
+ggplot(df.mean, aes(y = mean.CA.cor.p, x = reorder(R0, order))) +
+  geom_point() +  
+  geom_text(aes(label = round(mean.CA.cor.p, digits = 3), vjust = -1)) +
+  coord_cartesian(ylim = c(0, 0.8)) +
+  labs(x = "LPD", y = "<cc (1/LPD CA, SDi_exp) p>")
+
+ggplot(df.mean, aes(y = mean.CM.cor.p, x = reorder(R0, order))) +
+  geom_point() + 
+  geom_text(aes(label = round(mean.CM.cor.p, digits = 3), vjust = -1)) +
+  coord_cartesian(ylim = c(0, 0.8)) +
+  labs(x = "LPD", y = "<cc (1/LPD CM, SDi_exp) p>")
+
+ggplot(df.mean, aes(y = mean.CA.cor.p.sqrt, x = reorder(R0, order))) +
+  geom_point() +
+  geom_text(aes(label = round(mean.CA.cor.p.sqrt, digits = 3), vjust = -1)) +
+  coord_cartesian(ylim = c(0, 0.8)) +
+  labs(x = "LPD", y = "<cc (1/LPD CA, SDi_exp) p sqrt>")
+
+ggplot(df.mean, aes(y = mean.CM.cor.p.sqrt, x = reorder(R0, order))) +
+  geom_point() +  
+  geom_text(aes(label = round(mean.CM.cor.p.sqrt, digits = 3), vjust = -1)) +
+  coord_cartesian(ylim = c(0, 0.8)) +
+  labs(x = "LPD", y = "<cc (1/LPD CM, SDi_exp) p sqrt>")
+
+# calculate data frames
+df.CA.cor.s = data.frame(family = as.vector(matrix(rep(input$family, nrow(cc)), nrow = nrow(cc), byrow = T)),
+                         R0 = as.character(rep(cc$X, length(input$family))), 
+                         cc = as.vector(CA.cor.s))
+
+# Add a column with order
+df.CA.cor.s$order = c(1:length(df.CA.cor.s$R0))
+
+# use the added column to reorder() your data in ggplot
+ggplot(df.CA.cor.s,  aes(x = reorder(R0, order), y = cc, col = family)) +
+  geom_point() +
+  coord_cartesian(ylim = c(0, 0.9)) +
+  labs(x = "LPD", y = "cc (1/LPD CA, SDi_exp) s")
+
+# calculate data frames
+df.CM.cor.s = data.frame(family = as.vector(matrix(rep(input$family, nrow(cc)), nrow = nrow(cc), byrow = T)),
+                         R0 = as.character(rep(cc$X, length(input$family))), 
+                         cc = as.vector(CM.cor.s))
+
+# Add a column with order
+df.CM.cor.s$order = c(1:length(df.CM.cor.s$R0))
+
+# use the added column to reorder() your data in ggplot
+ggplot(df.CM.cor.s,  aes(x = reorder(R0, order), y = cc, col = family)) +
+  geom_point() +
+  coord_cartesian(ylim = c(0, 0.9)) +
+  labs(x = "LPD", y = "cc (1/LPD CM, SDi_exp) s")
+
+# calculate data frames
+df.CA.cor.p = data.frame(family = as.vector(matrix(rep(input$family, nrow(cc)), nrow = nrow(cc), byrow = T)),
+                         R0 = as.character(rep(cc$X, length(input$family))), 
+                         cc = as.vector(CA.cor.p))
+
+# Add a column with order
+df.CA.cor.p$order = c(1:length(df.CA.cor.p$R0))
+
+# use the added column to reorder() your data in ggplot
+ggplot(df.CA.cor.p,  aes(x = reorder(R0, order), y = cc, col = family)) +
+  geom_point() +
+  coord_cartesian(ylim = c(0, 0.9)) +
+  labs(x = "LPD", y = "cc (1/LPD CA, SDi_exp) p")
+
+# calculate data frames
+df.CM.cor.p = data.frame(family = as.vector(matrix(rep(input$family, nrow(cc)), nrow = nrow(cc), byrow = T)),
+                         R0 = as.character(rep(cc$X, length(input$family))), 
+                         cc = as.vector(CM.cor.p))
+
+# Add a column with order
+df.CM.cor.p$order = c(1:length(df.CM.cor.p$R0))
+
+# use the added column to reorder() your data in ggplot
+ggplot(df.CM.cor.p,  aes(x = reorder(R0, order), y = cc, col = family)) +
+  geom_point() +
+  coord_cartesian(ylim = c(0, 0.9)) +
+  labs(x = "LPD", y = "cc (1/LPD CM, SDi_exp) p")
+
+# calculate data frames
+df.CA.cor.p.sqrt = data.frame(family = as.vector(matrix(rep(input$family, nrow(cc)), nrow = nrow(cc), byrow = T)),
+                         R0 = as.character(rep(cc$X, length(input$family))), 
+                         cc = as.vector(CA.cor.p.sqrt))
+
+# Add a column with order
+df.CA.cor.p.sqrt$order = c(1:length(df.CA.cor.p.sqrt$R0))
+
+# use the added column to reorder() your data in ggplot
+ggplot(df.CA.cor.p.sqrt,  aes(x = reorder(R0, order), y = cc, col = family)) +
+  geom_point() +
+  coord_cartesian(ylim = c(0, 0.9)) +
+  labs(x = "LPD", y = "cc (1/LPD CA, SDi_exp) p sqrt ")
+
+# calculate data frames
+df.CM.cor.p.sqrt = data.frame(family = as.vector(matrix(rep(input$family, nrow(cc)), nrow = nrow(cc), byrow = T)),
+                         R0 = as.character(rep(cc$X, length(input$family))), 
+                         cc = as.vector(CM.cor.p.sqrt))
+
+# Add a column with order
+df.CM.cor.p.sqrt$order = c(1:length(df.CM.cor.p.sqrt$R0))
+
+# use the added column to reorder() your data in ggplot
+ggplot(df.CM.cor.p.sqrt,  aes(x = reorder(R0, order), y = cc, col = family)) +
+  geom_point() +
+  coord_cartesian(ylim = c(0, 0.9)) +
+  labs(x = "LPD", y = "cc (1/LPD CM, SDi_exp) p sqrt")
+```

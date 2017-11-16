@@ -1,0 +1,8 @@
+"0","ggplot(d, aes(x = site, y = mean.z.RSD, col = dataset)) +
+  geom_line() +
+  geom_text(data = subset(d, dataset == ""exp"" & mean.z.RSD < -.5), aes(x = site, y = mean.z.RSD, label = site), nudge_y = -.1, size = 1.8)+
+  geom_vline(xintercept = active.sites, show.legend = F) +
+  geom_vline(xintercept = contacts.active.sites, col = ""grey"", show.legend = F)
+"
+"2","Error in eval(expr, envir, enclos) : object 'dataset' not found
+"

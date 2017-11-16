@@ -1,0 +1,5 @@
+"0","# which are the functional sites?"
+"0","functional.sites = read.csv(functional.sites.fname, sep = "";"")"
+"0","active.site.index = functional.sites$index"
+"0","description = functional.sites$description"
+"0","function.info = data.frame(active.site.index, description)"

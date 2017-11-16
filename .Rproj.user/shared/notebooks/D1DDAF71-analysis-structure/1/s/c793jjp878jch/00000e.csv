@@ -1,0 +1,4 @@
+"0","# comparison of means.z.scores with the minimum distance to the functional sites"
+"0","plot(y = d.exp$mean.z.RSD - d.mut$mean.z.RSD, x = m.min.da.CM.CA$min.da.CA, xlab = ""minimal distance to active site (between CAs)"", ylab = ""exp.mean.z.RSD - mut.mean.z.RSD"")"
+"2","Error in xy.coords(x, y, xlabel, ylabel, log) : object 'd.exp' not found
+"

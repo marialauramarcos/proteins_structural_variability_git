@@ -1,0 +1,496 @@
+---
+title: "Structural divergence - normal modes"
+output: html_document
+---
+
+# Introduction
+In this report we compare structural divergence along normal mode coordinates. Pn is the divergence along a normal mode relative to the mean.
+
+```{r setup, include = FALSE}
+# set chunk options
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE)
+```
+
+```{r load-packages}
+# load packages
+library(ggplot2)
+library(reshape2)
+library(plyr)
+library(quantreg)
+library(bio3d)
+
+# load functions
+source(file.path(data.dir, "multiplot.R"))
+source(file.path(data.dir, "my-functions.R")) 
+```
+
+```{r set-my-colors}
+# set my colors
+myColors = c("blue", "darkgreen", "darkgreen", "red", "red") 
+names(myColors) <- c("exp", "mut", "no-selection", "medium", "selection")
+```
+
+```{r set-run-variables}
+# general parameters
+tolerance = 1e-10
+
+# set significance factors
+f95 = 1.96
+f99 = 2.6
+f999 = 3.3
+```
+
+```{r set-file-names}
+# set input filenames
+## data
+reference.fname = file.path(data.dir, paste(family, "_ref.txt", sep = ""))
+protein_list.fname = file.path(data.dir, paste(family, "_list.txt", sep = ""))
+
+## profiles to compare
+### Pn
+Pn.exp.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_no.sel_K.analysis_Keff_out_m.exp.Pn.csv", sep = ""))
+Pn.medium.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_medium.sel_K.analysis_Keff_out_m.theo.Pn.csv", sep = ""))
+Pn.mut.fname = file.path(data.dir,paste(family, "_R0_", R0, "_beta_no.sel_K.analysis_Keff_out_m.theo.Pn.csv", sep = ""))
+
+### energy
+energy.exp.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_no.sel_K.analysis_Keff_out_m.exp.va.csv", sep = ""))
+energy.medium.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_medium.sel_K.analysis_Keff_out_m.theo.va.csv", sep = ""))
+energy.mut.fname = file.path(data.dir, paste(family, "_R0_", R0, "_beta_no.sel_K.analysis_Keff_out_m.theo.va.csv", sep = ""))
+```
+
+```{r set-reference-protein}
+# which is the reference protein?
+reference = as.character(read.table(reference.fname, header = F)[1, 1])
+if (reference != p.ref) {
+  print("Warning: different references")
+}
+```
+
+```{r set-experimental-protein-names, comment = ""}
+# experimental protein names
+protein.exp = read.table(protein_list.fname, header = F, stringsAsFactors = F)[, 1]
+protein.exp = protein.exp[protein.exp != reference]
+```
+
+```{r prepare-site-data}
+# prepare the data
+Pn.exp = read.csv(Pn.exp.fname, header = T)
+rownames(Pn.exp) = paste("exp", rownames(Pn.exp), sep = "")
+energy.exp = read.csv(energy.exp.fname, header = T)
+rownames(energy.exp) = paste("exp", rownames(energy.exp), sep = "")
+
+Pn.mut = read.csv(Pn.mut.fname, header = T)
+rownames(Pn.mut) = paste("mut", rownames(Pn.mut), sep = "")
+energy.mut = read.csv(energy.mut.fname, header = T)
+rownames(energy.mut) = paste("mut", rownames(energy.mut), sep = "")
+
+Pn.medium = read.csv(Pn.medium.fname, header = T)
+rownames(Pn.medium) = paste("medium", rownames(Pn.medium), sep = "")
+energy.medium = read.csv(energy.medium.fname, header = T)
+rownames(energy.medium) = paste("medium", rownames(energy.medium), sep = "")
+```
+
+```{r prepare-mode-data}
+mode = seq(ncol(Pn.medium))
+
+# Prepare modeComparison.exp
+tPn.exp = as.data.frame(t(as.matrix(Pn.exp)))
+tPn.exp = cbind(data.frame("mode" = mode), tPn.exp)
+Pn.exp.long = melt(tPn.exp, "mode", variable.name = "protein", value.name = "Pn")
+
+tenergy.exp = as.data.frame(t(as.matrix(energy.exp)))
+tenergy.exp = cbind(data.frame("mode" = mode), tenergy.exp)
+energy.exp.long = melt(tenergy.exp, "mode", variable.name = "protein", value.name = "energy")
+energy.exp.long$sn2 = 1/energy.exp.long$energy
+modeComparison.exp = merge(energy.exp.long, Pn.exp.long,by = c("mode", "protein"))
+
+# Prepare modeComparison.medium
+tPn.medium = as.data.frame(t(as.matrix(Pn.medium)))
+tPn.medium = cbind(data.frame("mode" = mode), tPn.medium)
+Pn.medium.long = melt(tPn.medium, "mode", variable.name = "protein", value.name = "Pn")
+
+tenergy.medium = as.data.frame(t(as.matrix(energy.medium)))
+tenergy.medium = cbind(data.frame("mode" = mode), tenergy.medium)
+energy.medium.long = melt(tenergy.medium, "mode", variable.name = "protein", value.name = "energy")
+energy.medium.long$sn2 = 1/energy.medium.long$energy
+modeComparison.medium = merge(energy.medium.long, Pn.medium.long, by = c("mode", "protein"))
+
+# Prepare modeComparison.mut
+tPn.mut = as.data.frame(t(as.matrix(Pn.mut)))
+tPn.mut = cbind(data.frame("mode" = mode), tPn.mut)
+Pn.mut.long = melt(tPn.mut, "mode", variable.name = "protein", value.name = "Pn")
+
+tenergy.mut = as.data.frame(t(as.matrix(energy.mut)))
+tenergy.mut = cbind(data.frame("mode" = mode), tenergy.mut)
+energy.mut.long = melt(tenergy.mut, "mode", variable.name = "protein", value.name = "energy")
+energy.mut.long$sn2 = 1/energy.mut.long$energy
+modeComparison.mut = merge(energy.mut.long, Pn.mut.long, by = c("mode", "protein"))
+
+# omit Nas
+modeComparison.exp <- na.omit(modeComparison.exp)
+modeComparison.medium <- na.omit(modeComparison.medium)
+modeComparison.mut <- na.omit(modeComparison.mut)
+
+# quantile regression 
+
+## fit median and quantiles to experimental data
+fit.exp.rq.5 <- rq(Pn ~ sn2, tau = .5, data = modeComparison.exp, method = "fn")
+fit.exp.rq.05 <- rq(Pn ~ sn2, tau = .05, data = modeComparison.exp, method = "fn")
+fit.exp.rq.95 <- rq(Pn ~ sn2, tau = .95, data = modeComparison.exp, method = "fn")
+modeComparison.exp$rq.5 = fit.exp.rq.5$fitted.values
+modeComparison.exp$rq.05 = fit.exp.rq.05$fitted.values
+modeComparison.exp$rq.95 = fit.exp.rq.95$fitted.values
+
+## fit median and quantiles to simulated data and add them to data.frames
+fit.medium.rq.5 <- rq(Pn ~ sn2, tau = .5, data = modeComparison.medium, method = "fn")
+fit.medium.rq.05 <- rq(Pn ~ sn2, tau = .05, data = modeComparison.medium, method = "fn")
+fit.medium.rq.95 <- rq(Pn ~ sn2, tau = .95, data = modeComparison.medium, method = "fn")
+modeComparison.medium$rq.5 = fit.medium.rq.5$fitted.values
+modeComparison.medium$rq.05 = fit.medium.rq.05$fitted.values
+modeComparison.medium$rq.95 = fit.medium.rq.95$fitted.values
+
+## fit median and quantiles to simulated data and add them to data.frames
+fit.mut.rq.5 <- rq(Pn ~ sn2, tau = .5, data = modeComparison.mut, method = "fn")
+fit.mut.rq.05 <- rq(Pn ~ sn2, tau = .05, data = modeComparison.mut, method = "fn")
+fit.mut.rq.95 <- rq(Pn ~ sn2, tau = .95, data = modeComparison.mut, method = "fn")
+modeComparison.mut$rq.5 = fit.mut.rq.5$fitted.values
+modeComparison.mut$rq.05 = fit.mut.rq.05$fitted.values
+modeComparison.mut$rq.95 = fit.mut.rq.95$fitted.values
+
+# put simulated and experimental data together
+modeComparison.all.datasets = rbind(data.frame("dataset" = "exp", modeComparison.exp),
+                                    data.frame("dataset" = "mut", modeComparison.mut),
+                                    data.frame("dataset" = "medium", modeComparison.medium))
+
+modeComparison.all.datasets$dataset = factor(modeComparison.all.datasets$dataset, levels = c("exp", "mut", "medium"))
+```
+
+### Fitted Pn vs mode energy and mode number
+
+In this section we compare Pn fitted data. Lines are the median, 0.05 and 0.95 quantiles fit using rq(Pn ~ sn2). sn2 = 1/energy is the expected MSD along mode n. The mean value of Pn should be a linear function of sn2.
+
+Here we show the square deviation along each normal mode (normalized so that = 1) vs. the normal-mode's energy. For the empirical data, we use the actual energy obtained from the Keff for the given comparison. It is this energy that should be used, since it's inverse is the expected value of Pn. Lines are the .5 (median), .05, and .95 quantiles obtained using rq()
+
+```{r Pn-reg-vs-energy}
+
+dat = modeComparison.all.datasets
+
+# Plot Pn vs energy
+p.points.rq = ggplot(dat, aes(x = energy, y = Pn, col = dataset)) + 
+    geom_point(alpha = .4, size = .2) +
+    geom_line(aes(y = rq.5)) +
+    geom_line(aes(y = rq.05)) +
+    geom_line(aes(y = rq.95)) 
+
+p = p.points.rq +  
+    labs(x = "mode energy", y = "fitted Pn") +
+    coord_cartesian(xlim = c(0, 3)) +
+    scale_colour_manual(name = NULL, values = myColors) + 
+    scale_fill_manual(name = NULL, values = myColors)
+
+p.facet = p + facet_grid(dataset~., switch = "y") + theme(legend.position = "none")
+p.facet
+
+# Plot Pn vs mode
+p.points.rq = ggplot(dat, aes(x = mode, y = Pn, col = dataset)) + 
+    geom_point(alpha = .4, size = .2) +
+    geom_line(aes(y = rq.5)) +
+    geom_line(aes(y = rq.05)) +
+    geom_line(aes(y = rq.95)) 
+
+p = p.points.rq +  
+    labs(x = "mode", y = "fitted Pn") +
+    scale_colour_manual(name = NULL, values = myColors) + 
+    scale_fill_manual(name = NULL, values = myColors)
+
+p.facet = p + facet_grid(dataset~., switch = "y") + theme(legend.position = "none")
+p.facet
+```
+
+### median Pn and rq.5 vs mode energy and mode number
+In this section we compare median Pn and rq.5 profiles with mode energy and mode number.
+
+```{r median-reg-vs-mode-energy}
+
+dat = modeComparison.all.datasets
+dat$dataset = revalue(dat$dataset, c("medium" = "selection"))
+dat$dataset = revalue(dat$dataset, c("mut" = "no-selection"))
+
+# calculate dataset of medians
+dat = ddply(dat,c("dataset", "mode"), function(x) {
+    energy.mean = mean(x$energy)
+      Pn.median = median(x$Pn)
+   Pn.median.ci = sort(x$Pn)[qbinom(c(.025, .975), length(x$Pn), 0.5)]
+  Pn.median.min = Pn.median.ci[1] 
+  Pn.median.max = Pn.median.ci[2]
+           rq.5 = mean(x$rq.5)
+  data.frame(energy.mean, Pn.median.min, Pn.median.max, Pn.median, rq.5)
+})
+
+p = ggplot(dat, aes(x = energy.mean, y = Pn.median, col = dataset, fill = dataset)) +
+    geom_pointrange(aes(ymin = Pn.median.min, ymax = Pn.median.max), size = .2, alpha = .4) +
+    geom_line(aes(y = rq.5))  +
+    labs(x = "mode energy", y = "median Pn") +
+    scale_colour_manual(name = NULL, values = myColors) + 
+    scale_fill_manual(name = NULL, values = myColors) +
+    coord_cartesian(xlim = c(0, 3)) 
+
+p.facet = p + facet_grid(dataset~., switch = "y") + theme(legend.position = "none")
+p.facet
+p + theme(legend.position = "bottom")
+
+p = ggplot(dat, aes(x = mode, y = Pn.median, col = dataset, fill = dataset)) +
+    geom_pointrange(aes(ymin = Pn.median.min, ymax = Pn.median.max), size = .2, alpha = .4) +
+    geom_line(aes(y = rq.5))  +
+    labs(x = "mode", y = "median Pn") +
+    scale_colour_manual(name = NULL, values = myColors) + 
+    scale_fill_manual(name = NULL, values = myColors)
+
+p.facet = p + facet_grid(dataset~., switch = "y") + theme(legend.position = "none")
+p.facet
+p + theme(legend.position = "bottom")
+```
+
+### Comparison and correlation between mean profiles
+(calculated for all modes)
+In this section we compare mean Pn profiles.
+
+```{r mean-vs-mode-energy}
+
+dat = modeComparison.all.datasets
+dat$dataset = revalue(dat$dataset, c("medium" = "selection"))
+dat$dataset = revalue(dat$dataset, c("mut" = "no-selection"))
+
+# calculate dataset of means
+dat = ddply(dat,c("dataset", "mode"), function(x) {
+    energy.mean = mean(x$energy)
+    Pn.mean = mean(x$Pn)
+    ndata = sum(!is.na(x$Pn))
+    Pn.se = sd(x$Pn, na.rm = T) / sqrt(ndata)
+    data.frame(energy.mean, Pn.mean, Pn.se)
+})
+
+# plot Pn vs mode
+p = ggplot(dat, aes(x = mode, y = Pn.mean, col = dataset, fill = dataset)) +
+    geom_pointrange(aes(ymin = Pn.mean - f95 * Pn.se, ymax = Pn.mean + Pn.se), size = .2, alpha = .4) +
+    labs(x = "mode", y = "<Pn>") +
+    scale_colour_manual(name = NULL, values = myColors) + 
+    scale_fill_manual(name = NULL, values = myColors)
+
+p.facet = p + facet_grid(dataset~., switch = "y") + theme(legend.position = "none")
+p.facet
+p + theme(legend.position = "bottom")
+
+# plot Pn vs 1 / mode energy
+p = ggplot(dat, aes(x = (1/energy.mean), y = Pn.mean, col = dataset, fill = dataset)) +
+    geom_point() +
+    labs(x = "1/lambda_n", y = "<Pn>") +
+    scale_colour_manual(name = NULL, values = myColors) + 
+    scale_fill_manual(name = NULL, values = myColors)
+
+p.facet = p + facet_grid(dataset~., switch = "y") + theme(legend.position = "none")
+p.facet
+p + theme(legend.position = "bottom")
+```
+
+(calculated for the first 100 modes)
+
+```{r mean-correlation}
+dat = subset(dat, mode < 101)
+dat.exp = subset(dat, dataset == "exp")
+dat.mut = subset(dat,dataset == "no-selection")
+dat.medium = subset(dat,dataset == "selection")
+
+# correlations between Pn profiles and the fluctuation of modes sn2 = 1/lambda_n
+r.exp = cor(dat.exp$Pn.mean, (1/dat.exp$energy.mean))
+r.mut = cor(dat.mut$Pn.mean, (1/dat.mut$energy.mean))
+r.medium = cor(dat.medium$Pn.mean, (1/dat.medium$energy.mean))
+cor.df = data.frame("comparison Pn-Sn2" = c("exp", "mut", "medium"),
+                             "R" = c(r.exp, r.mut, r.medium))
+knitr::kable(cor.df, digits = 2)
+
+# plots Pn vs sn2
+par(pty = "s")
+
+layout(matrix(1:3, 1, 3))
+
+plot(y = dat.exp$Pn.mean, x = (1/dat.exp$energy.mean), xlab = "1/lambda_n", ylab = "<Pn> experimental")
+fluc = (1/dat.exp$energy.mean)
+lm = lm(dat.exp$Pn.mean ~ fluc)
+abline(lm)
+legend("topleft", paste ("r = ", round(r.exp, digits = 2)), bty = "n")
+
+plot(y = dat.mut$Pn.mean, x = (1/dat.mut$energy.mean), xlab = "1/lambda_n", ylab = "<Pn> no-selection")
+fluc = (1/dat.mut$energy.mean)
+lm = lm(dat.mut$Pn.mean ~ fluc)
+abline(lm)
+legend("topleft", paste ("r = ", round(r.mut, digits = 2)), bty = "n")
+
+plot(y = dat.medium$Pn.mean, x = (1/dat.medium$energy.mean), xlab = "1/lambda_n", ylab = "<Pn> selection")
+fluc = (1/dat.medium$energy.mean)
+lm = lm(dat.medium$Pn.mean ~ fluc)
+abline(lm)
+legend("topleft", paste ("r = ", round(r.medium, digits = 2)), bty = "n")
+
+# correlations between Pn profiles
+r.exp.mut = cor(dat.exp$Pn.mean, dat.mut$Pn.mean)
+r.exp.medium = cor(dat.exp$Pn.mean, dat.medium$Pn.mean)
+r.mut.medium = cor(dat.mut$Pn.mean, dat.medium$Pn.mean)
+
+cor.df = data.frame("comparison Pn 100 modes" = c("exp vs mut", "exp vs medium", "mut vs medium"),
+                    "R" = c(r.exp.mut, r.exp.medium, r.mut.medium))
+knitr::kable(cor.df, digits = 2)
+
+# plot Pn profiles
+par(pty = "s")
+
+layout(matrix(1:3, 1, 3))
+
+plot(x = dat.mut$Pn.mean, 
+     y = dat.exp$Pn.mean, 
+     xlab = "<Pn> no-selection", 
+     ylab = "<Pn> experimental") 
+lm = lm(dat.exp$Pn.mean ~ dat.mut$Pn.mean)
+abline(lm)
+legend("topleft", paste ("r = ", round(r.exp.mut, digits = 2)), bty = "n")
+
+plot(x = dat.medium$Pn.mean, 
+     y = dat.exp$Pn.mean, 
+     xlab = "<Pn> selection", 
+     ylab = "<Pn> experimental") 
+lm = lm(dat.exp$Pn.mean ~ dat.medium$Pn.mean)
+abline(lm)
+legend("topleft", paste ("r = ", round(r.exp.medium, digits = 2)), bty = "n")
+
+plot(x = dat.mut$Pn.mean, 
+     y = dat.medium$Pn.mean, 
+     xlab = "<Pn> no-selection", 
+     ylab = "<Pn> selection")
+lm = lm(dat.medium$Pn.mean ~ dat.mut$Pn.mean)
+abline(lm)
+legend("topleft", paste ("r = ", round(r.mut.medium, digits = 2)), bty = "n")
+```
+
+### Comparison and correlation between median mode profiles
+(calculated for all modes)
+In this section we compare median Pn profiles.
+
+```{r median-vs-mode-energy}
+
+dat = modeComparison.all.datasets
+dat$dataset = revalue(dat$dataset, c("medium" = "selection"))
+dat$dataset = revalue(dat$dataset, c("mut" = "no-selection"))
+
+# calculate dataset of medians
+dat = ddply(dat,c("dataset", "mode"), function(x) {
+    energy.mean = mean(x$energy)
+    Pn.median = median(x$Pn)
+    Pn.median.ci = sort(x$Pn)[qbinom(c(.025, .975), length(x$Pn), 0.5)]
+    Pn.median.min = Pn.median.ci[1]
+    Pn.median.max = Pn.median.ci[2]
+    data.frame(energy.mean, Pn.median, Pn.median.min, Pn.median.max)
+})
+
+# plot Pn vs mode
+p = ggplot(dat, aes(x = mode, y = Pn.median, col = dataset, fill = dataset)) +
+    geom_pointrange(aes(ymin = Pn.median.min, ymax = Pn.median.max), size = .2, alpha = .4) +
+    labs(x = "mode", y = "median.Pn") +
+    scale_colour_manual(name = NULL, values = myColors) + 
+    scale_fill_manual(name = NULL, values = myColors)
+
+p.facet = p + facet_grid(dataset~., switch = "y") + theme(legend.position = "none")
+p.facet %+% subset(dat,dataset == "exp")
+p.facet %+% subset(dat,dataset == "no-selection")
+p.facet %+% subset(dat,dataset == "selection")
+p.facet
+p + theme(legend.position = "bottom")
+
+# plot Pn vs mode energy
+p = ggplot(dat, aes(x = (1/energy.mean), y = Pn.median, col = dataset, fill = dataset)) +
+    geom_point() +
+    labs(x = "1/lambda_n", y = "median Pn") +
+    scale_colour_manual(name = NULL, values = myColors) + 
+    scale_fill_manual(name = NULL, values = myColors)
+
+p.facet = p + facet_grid(dataset~., switch = "y") + theme(legend.position = "none")
+p.facet
+p + theme(legend.position = "bottom")
+```
+
+(calculated for the first 100 modes)
+
+```{r median-correlation}
+dat = subset(dat, mode < 101)
+dat.exp = subset(dat, dataset == "exp")
+dat.mut = subset(dat,dataset == "no-selection")
+dat.medium = subset(dat,dataset == "selection")
+
+# correlations between Pn profiles and the fluctuation of modes sn2 = 1/lambda_n
+r.exp = cor(dat.exp$Pn.median, (1/dat.exp$energy.mean))
+r.mut = cor(dat.mut$Pn.median, (1/dat.mut$energy.mean))
+r.medium = cor(dat.medium$Pn.median, (1/dat.medium$energy.mean))
+cor.df = data.frame("comparison Pn-Sn2" = c("exp", "mut", "medium"),
+                             "R" = c(r.exp, r.mut, r.medium))
+knitr::kable(cor.df, digits = 2)
+
+# plots Pn vs sn2
+par(pty = "s")
+
+layout(matrix(1:3, 1, 3))
+
+plot(y = dat.exp$Pn.median, x = (1/dat.exp$energy.mean), xlab = "1/lambda_n", ylab = "median.Pn experimental")
+fluc = (1/dat.exp$energy.mean)
+lm = lm(dat.exp$Pn.median ~ fluc)
+abline(lm)
+legend("topleft", paste ("r = ", round(r.exp, digits = 2)), bty = "n")
+
+plot(y = dat.mut$Pn.median, x = (1/dat.mut$energy.mean), xlab = "1/lambda_n", ylab = "median.Pn no-selection")
+fluc = (1/dat.mut$energy.mean)
+lm = lm(dat.mut$Pn.median ~ fluc)
+abline(lm)
+legend("topleft", paste ("r = ", round(r.mut, digits = 2)), bty = "n")
+
+plot(y = dat.medium$Pn.median, x = (1/dat.medium$energy.mean), xlab = "1/lambda_n", ylab = "median.Pn selection")
+fluc = (1/dat.medium$energy.mean)
+lm = lm(dat.medium$Pn.median ~ fluc)
+abline(lm)
+legend("topleft", paste ("r = ", round(r.medium, digits = 2)), bty = "n")
+
+# correlations between Pn profiles
+r.exp.mut = cor(dat.exp$Pn.median, dat.mut$Pn.median)
+r.exp.medium = cor(dat.exp$Pn.median, dat.medium$Pn.median)
+r.mut.medium = cor(dat.mut$Pn.median, dat.medium$Pn.median)
+
+cor.df = data.frame("comparison Pn 100 modes" = c("exp vs mut", "exp vs medium", "mut vs medium"),
+                    "R" = c(r.exp.mut, r.exp.medium, r.mut.medium))
+knitr::kable(cor.df, digits = 2)
+
+# plot Pn profiles
+par(pty = "s")
+
+layout(matrix(1:3, 1, 3))
+
+plot(x = dat.mut$Pn.median, 
+     y = dat.exp$Pn.median, 
+     xlab = "median.Pn no-selection", 
+     ylab = "median.Pn experimental") 
+lm = lm(dat.exp$Pn.median ~ dat.mut$Pn.median)
+abline(lm)
+legend("topleft", paste ("r = ", round(r.exp.mut, digits = 2)), bty = "n")
+
+plot(x = dat.medium$Pn.median, 
+     y = dat.exp$Pn.median, 
+     xlab = "median.Pn selection", 
+     ylab = "median.Pn experimental") 
+lm = lm(dat.exp$Pn.median ~ dat.medium$Pn.median)
+abline(lm)
+legend("topleft", paste ("r = ", round(r.exp.medium, digits = 2)), bty = "n")
+
+plot(x = dat.mut$Pn.median, 
+     y = dat.medium$Pn.median, 
+     xlab = "median.Pn no-selection", 
+     ylab = "median.Pn selection")
+lm = lm(dat.medium$Pn.median ~ dat.mut$Pn.median)
+abline(lm)
+legend("topleft", paste ("r = ", round(r.mut.medium, digits = 2)), bty = "n")
+```

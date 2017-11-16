@@ -1,0 +1,3 @@
+"0","# set my colors"
+"0","myColors = c(""blue"", ""darkgreen"", ""darkgreen"", ""red"", ""red"") "
+"0","names(myColors) <- c(""exp"", ""mut"", ""no-selection"", ""medium"", ""selection"")"

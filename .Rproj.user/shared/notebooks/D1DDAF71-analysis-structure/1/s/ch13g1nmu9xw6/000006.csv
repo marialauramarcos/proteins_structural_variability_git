@@ -1,0 +1,5 @@
+"0","# plot exp vs simulated profiles "
+"0","par(pty = ""s"")"
+"2","Error in (function (filename = ""Rplot%03d.png"", width = 480, height = 480,  : 
+  unable to start png() device
+"

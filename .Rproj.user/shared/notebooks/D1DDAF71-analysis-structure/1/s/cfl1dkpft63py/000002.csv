@@ -1,0 +1,5 @@
+"0","# which is the reference protein?"
+"0","reference = as.character(read.table(reference.fname, header = F)[1, 1])"
+"0","if (reference != p.ref) {"
+"0","  print(""Warning: different references"")"
+"0","}"

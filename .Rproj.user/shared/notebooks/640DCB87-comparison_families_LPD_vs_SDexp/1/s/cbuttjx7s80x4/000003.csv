@@ -1,0 +1,11 @@
+"0","ggplot(df.mean, aes(y = mean.CA.cor.s, x = reorder(R0, order))) +
+  geom_point() +  
+  labs(x = ""R0"")
+"
+"2","Warning in gzfile(file, ""wb"") :"
+"2","
+ "
+"2"," cannot open compressed file 'C:/Users/MarÃ­a Laura/Desktop/VariabilidadEstructuralProteica/VariabilidadEstructuralProteica/.Rproj.user/shared/notebooks/640DCB87-comparison_families_LPD_vs_SDexp/1/s/cbuttjx7s80x4_t/c184a2d2607e41bcbeb1fbbae8ee691a.snapshot', probable reason 'No such file or directory'
+"
+"2","Error in gzfile(file, ""wb"") : cannot open the connection
+"

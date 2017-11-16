@@ -1,0 +1,7 @@
+"0","plot(x = log(p.accept.no.sel), y = CN, xlab = ""log(paccept no-selection)"")
+"
+"2","unable to open file 'C:/Users/María Laura/Desktop/VariabilidadEstructuralProteica/VariabilidadEstructuralProteica/.Rproj.user/shared/notebooks/C5D23CAC-analysis-structure/1/42DB0F4A/cxbn5ye14lb92_t/_rs_chunk_plot_001.png' for writing"
+"2","opening device failed"
+"2","Error in (function (filename = ""Rplot%03d.png"", width = 480, height = 480,  : 
+  unable to start png() device
+"

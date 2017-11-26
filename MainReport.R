@@ -49,7 +49,7 @@ for (f in (1:nrow(input))) {
   rmarkdown::render('analysis-structure.Rmd', 
                     output_file =  paste(out.dir, "/report_structure_CA_", family, "_", enm, "_R0_", R0, ".html", sep = ''))
   
-  ### SD(1/CN) - SD(EXP) - comparison to determine the best R0 
+  ### 1/LPD vs SD(EXP) - Comparison to determine the best R0 
   rmarkdown::render('analysis-structure-CN-WCN-exp.Rmd', 
                     output_file =  paste(out.dir, "/report_comparison_LPD_SDexp_", family, ".html", sep = ''))
 

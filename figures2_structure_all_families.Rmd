@@ -6,7 +6,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
 # Introduction
 In this report we compare experimental and theoretical SDi profiles and SDi profiles with MSFi and 1/CN. We show the figures of all families.
-Then, we compare correlations between SDi profiles with the number of proteins of the family and the sites of p.ref. Finally, we comapre correlations obtained for SDi theo profiles with correlations obtained for LPD. 
+Then, we compare correlations between SDi profiles with the number of proteins of the family and the sites of p.ref. Finally, we comapre correlations obtained for SDi theo profiles with correlations obtained for LPD with the same R0 (12.5). 
 
 ```{r load-packages}
 # load packages
@@ -35,31 +35,31 @@ for (f in (1:nrow(input))) {
   d.mut = subset(d, dataset == "no-selection")
   d.medium = subset(d, dataset == "selection")
 
- # calculate Pearson correlation
+  # calculate Pearson correlation
   r.exp.mut = cor(sqrt(d.exp$mean.SD), sqrt(d.mut$mean.SD))
   r.exp.medium = cor(sqrt(d.exp$mean.SD), sqrt(d.medium$mean.SD))
   r.mut.medium = cor(sqrt(d.mut$mean.SD), sqrt(d.medium$mean.SD))
 
-  ## plot exp vs simulated sqrt SDi profiles
+  # plots
   par(pty = "s")
 
-  plot(x = scale(sqrt(d.mut$mean.SD)), 
-       y = scale(sqrt(d.exp$mean.SD)), 
+  plot(x = (sqrt(d.mut$mean.SD)), 
+       y = (sqrt(d.exp$mean.SD)), 
        xlab = "sqrt <SDi> no-selection", 
        ylab = "sqrt <SDi> experimental") 
   lm = lm(sqrt(d.exp$mean.SD) ~ sqrt(d.mut$mean.SD))
   legend("topleft", paste ("r = ", round(r.exp.mut, digits = 2)), bty = "n")
 
-  plot(x = scale(sqrt(d.medium$mean.SD)), 
-       y = scale(sqrt(d.exp$mean.SD)), 
+  plot(x = (sqrt(d.medium$mean.SD)), 
+       y = (sqrt(d.exp$mean.SD)), 
        xlab = "sqrt <SDi> selection", 
        ylab = "sqrt <SDi> experimental",
        main = family) 
   lm = lm(sqrt(d.exp$mean.SD) ~ sqrt(d.medium$mean.SD)) 
   legend("topleft", paste ("r = ", round(r.exp.medium, digits = 2)), bty = "n")
 
-  plot(x = scale(sqrt(d.mut$mean.SD)), 
-       y = scale(sqrt(d.medium$mean.SD)), 
+  plot(x = (sqrt(d.mut$mean.SD)), 
+       y = (sqrt(d.medium$mean.SD)), 
        xlab = "sqrt <SDi> no-selection", 
        ylab = "sqrt <SDi> selection")
   lm = lm(sqrt(d.medium$mean.SD) ~ sqrt(d.mut$mean.SD))
@@ -84,12 +84,12 @@ for (f in (1:nrow(input))) {
   d.mut = subset(d, dataset == "no-selection")
   d.medium = subset(d, dataset == "selection")
 
-  ## correlations
+  # correlations
   r.exp = cor(sqrt(d.exp$mean.SD), sqrt(MSF.p.ref))
   r.medium = cor(sqrt(d.medium$mean.SD), sqrt(MSF.p.ref))
   r.mut = cor(sqrt(d.mut$mean.SD), sqrt(MSF.p.ref))
 
-  ## plots
+  # plots
   par(pty = "s")
 
   plot(y = (sqrt(d.exp$mean.SD)), x = sqrt(MSF.p.ref), ylab = "sqrt <SDi> experimental", xlab = "sqrt MSFi")
@@ -97,11 +97,11 @@ for (f in (1:nrow(input))) {
   legend("topleft", paste ("r = ", round(r.exp, digits = 2)), bty = "n")
 
   plot(y = (sqrt(d.mut$mean.SD)), x = sqrt(MSF.p.ref), ylab = "sqrt <SDi> no-selection", xlab = "sqrt MSFi", main = family) 
-  lm = lm((d.mut$mean.SD) ~ MSF.p.ref)
+  lm = lm((sqrt(d.mut$mean.SD)) ~ sqrt(MSF.p.ref))
   legend("topleft", paste ("r = ", round(r.mut, digits = 2)), bty = "n")
 
   plot(y = (sqrt(d.medium$mean.SD)), x = sqrt(MSF.p.ref), ylab = "sqrt <SDi> selection", xlab =   "sqrt MSFi")
-  lm = lm(d.medium$mean.SD ~ MSF.p.ref)
+  lm = lm((sqrt(d.medium$mean.SD)) ~ sqrt(MSF.p.ref))
  legend("topleft", paste ("r = ", round(r.medium, digits = 2)), bty = "n")
 }
 ```
@@ -123,12 +123,12 @@ for (f in (1:nrow(input))) {
   d.mut = subset(d, dataset == "no-selection")
   d.medium = subset(d, dataset == "selection")
 
-  ## correlations
+  # correlations
   r.exp = cor(sqrt(d.exp$mean.SD), sqrt(1/CN))
   r.medium = cor(sqrt(d.medium$mean.SD), sqrt(1/CN))
   r.mut = cor(sqrt(d.mut$mean.SD), sqrt(1/CN))
 
-  ## plots
+  # plots
   par(pty = "s")
 
   plot(y = (sqrt(d.exp$mean.SD)), x = sqrt(1/CN), ylab = "sqrt <SDi> experimental", xlab = "sqrt 1/CNi")
@@ -136,11 +136,11 @@ for (f in (1:nrow(input))) {
   legend("topleft", paste ("r = ", round(r.exp, digits = 2)), bty = "n")
 
   plot(y = (sqrt(d.mut$mean.SD)), x = sqrt(1/CN), ylab = "sqrt <SDi> no-selection", xlab = "sqrt 1/CNi", main = family) 
-  lm = lm((d.mut$mean.SD) ~ 1/CN)
+  lm = lm(sqrt(d.mut$mean.SD) ~ sqrt(1/CN))
   legend("topleft", paste ("r = ", round(r.mut, digits = 2)), bty = "n")
 
   plot(y = (sqrt(d.medium$mean.SD)), x = sqrt(1/CN), ylab = "sqrt <SDi> selection", xlab =   "sqrt 1/CNi")
-  lm = lm(d.medium$mean.SD ~ 1/CN)
+  lm = lm(sqrt(d.medium$mean.SD) ~ sqrt(1/CN))
  legend("topleft", paste ("r = ", round(r.medium, digits = 2)), bty = "n")
 }
 ```
@@ -213,7 +213,7 @@ v.r.mut.medium = c()
 
 CA.cor.p.sqrt = c()
 
-  # satart a loop for each family
+# satart a loop for each family
 for (f in (1:nrow(input))) { 
   family <- as.character(input$family)[f]
   p.ref <- as.character(input$p.ref)[f]
@@ -231,7 +231,7 @@ for (f in (1:nrow(input))) {
   d.mut = subset(d, dataset == "no-selection")
   d.medium = subset(d, dataset == "selection")
 
- # calculate Pearson correlation
+  # calculate Pearson correlation
   r.exp.mut = cor(sqrt(d.exp$mean.SD), sqrt(d.mut$mean.SD))
   r.exp.medium = cor(sqrt(d.exp$mean.SD), sqrt(d.medium$mean.SD))
   r.mut.medium = cor(sqrt(d.mut$mean.SD), sqrt(d.medium$mean.SD))
@@ -244,7 +244,7 @@ for (f in (1:nrow(input))) {
   cc = read.csv(file = file.path("CORRELATIONS", paste(family, "_out_cc_R0s.csv", sep = "")))
   
   # get CA and CM pearson sqrt cc for f
-  CA.cor.p.sqrt = c(CA.cor.p.sqrt, cc$CA.pearson.sqrt[4])
+  CA.cor.p.sqrt = c(CA.cor.p.sqrt, cc$CA.pearson.sqrt[4]) # it might be changed (4 corresponds to R0 = 12.5)
 }
 
 layout(matrix(1:2, 1, 2, byrow = T))

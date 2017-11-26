@@ -1,10 +1,5 @@
-# Description: This program generates comparative reports with the output of "MainProgram.R" and "MainProgramCM.R".
+# Description: This program generates comparative reports with the output of "MainProgram.R", "MainProgramCM.R" and "MainReport".
 # To run the program it is neccessary to fill the input file "input_MainReport.csv".
-# Files needed for each family in data.dir are:
-#  "family_list.txt": with all of the proteins of the family (including p.ref).
-#  "family_ref.txt": p.ref.
-#  "p.ref.pdb": pdb file of p.ref.
-#  "p.ref_consurf.csv": sequence divergence scores obtained from ConsurfDB.
 
 ### PROGRAM ###
 
@@ -16,65 +11,42 @@ library(markdown)
 input.fname <- "input_MainReport.csv"
 input <- read.csv(input.fname)
 
+## all models
 
-## comparisons LPD vs SDexp all families
+### 1/LPD vs SD(EXP) - Comparison to determine the best R0 - all families
 rmarkdown::render('comparison_families_LPD_vs_SDexp.Rmd', 
                   output_file =  paste("FIGURES_REPORTS/report_comparison_families_LPD_vs_SDexp", ".html", sep = ""))
-
-data.dir = "OUT/out_subset_CA_ANM"
-
-## comparisons images structure all families
-rmarkdown::render('figures_structure_all_families.Rmd', 
-                  output_file =  paste("FIGURES_REPORTS/report_images_structure_all_families_CA", ".html", sep = ""))
-
-## comparisons figures structure all families
+## ANM CA
+data.dir <- "OUT/out_subset_CA_ANM"
 enm = "ANM"
-R0 = 12.5
+R0 = 12.5 # it might be changed
+
+### comparisons figures structure all families
 rmarkdown::render('figures2_structure_all_families.Rmd', 
                   output_file =  paste("FIGURES_REPORTS/report_comparison_figures_structure_all_families_CA","_", enm, "_R0_", R0, ".html", sep = ''))
 
-## comparisons mutants all families
-#rmarkdown::render('comparison_families.Rmd', 
-#                  output_file =  paste("FIGURES_REPORTS/report_comparison_families", ".html", sep = ''))
+## ANM CM
+#data.dir <- "OUT/out_subset_CM_ANM"
+#enm = "ANM"
+#R0 = 10 # it might be changed
 
-# satart a loop for each family
-for (f in (1:nrow(input))) { 
-  print(f)
-  family <- as.character(input$family)[f]
-  type <- as.character(input$type)[f]
-  p.ref <- as.character(input$p.ref)[f]
-  enm <- as.character(input$enm)[f]
-  n.mut.p <- input$n.mut.p[f]
-  chain.p.ref <- as.character(input$chain.p.ref)[f]
-  print(family)
-  
-  # generate reports - comparisons CA - CM and R0s
-  
-  ## comparisons CA CM
-  
-  #R0.CA = 12.5
-  #R0.CM = 10
-  #rmarkdown::render('comparison_CA_CM.Rmd', 
-  #                  output_file =  paste("OUT/report_comparison_CA_CM_", family, "_", enm,"_R0_", R0.CA, "_", R0.CM, ".html", sep = ''))
-  
-  ## comparison R0s
-  
-  ### CA
-  #data.dir <- paste("OUT/out_subset_CA_ANM", sep = "")
-  
-  #R0.1 = 10
-  #R0.2 = 12.5
-  
-  #rmarkdown::render('comparison_R0.Rmd', 
-  #                  output_file =  paste("OUT/report_comparison_CA_", family, "_", enm,"_R0_", R0.1, "_", R0.2, ".html", sep = ''))
-  
-  ### CM
-  #data.dir <- paste("OUT/out_subset_CM_ANM", sep = "")
-  
-  #R0.1 = 7.5
-  #R0.2 = 10
-  
-  #rmarkdown::render('comparison_R0.Rmd', 
-  #                  output_file =  paste("OUT/report_comparison_CM_", family, "_", enm,"_R0_", R0.1, "_", R0.2, ".html", sep = ''))
-  
-}
+### comparisons figures structure all families
+#rmarkdown::render('figures2_structure_all_families.Rmd', 
+#                  output_file =  paste("FIGURES_REPORTS/report_comparison_figures_structure_all_families_CM","_", enm, "_R0_", R0, ".html", sep = ''))
+## pfANM CA
+#data.dir <- "OUT/out_subset_CA_pfANM"
+#enm = "pfANM"
+#R0 = NC #
+
+### comparisons figures structure all families
+#rmarkdown::render('figures2_structure_all_families.Rmd', 
+#                  output_file =  paste("FIGURES_REPORTS/report_comparison_figures_structure_all_families_CA", "_", enm, "_R0_", R0, ".html", sep = ''))
+
+## pfANM CM
+#data.dir <- "OUT/out_subset_CM_pfANM"
+#enm = "pfANM"
+#R0 = NC #
+
+### comparisons figures structure all families
+#rmarkdown::render('figures2_structure_all_families.Rmd', 
+#                  output_file =  paste("FIGURES_REPORTS/report_comparison_figures_structure_all_families_CM", "_", enm, "_R0_", R0, ".html", sep = ''))

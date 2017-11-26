@@ -5,7 +5,7 @@ En este respositorio se encuentran los directorios, programas y archivos necesar
 Para correr los programas debe completarse el archivo input ("input_MainProgram.csv"). Luego, pueden ralizarse distintos análisis:
 
 ## Comparación proteínas experimentales con mutantes mútiples teóricas cuyas mutaciones fueron seleccionadas según el stress model:
-Debe correrse el programa "MainProgram.R", que realiza los siguientes pasos:
+Debe correrse el programa "MainProgram.R" o "MainProgramCM.R" (según se desee analizar solo CA o CA y CM respectivamente), que realizan los siguientes pasos:
 
 1) Lee el input.
 2) Analiza la familia de proteínas ingresada y genera archivos con la información extraída. Si estos archivos ya existen puede evitarse re-analizar la familia con una de las opciones del input.
@@ -13,6 +13,9 @@ Debe correrse el programa "MainProgram.R", que realiza los siguientes pasos:
 4) Analiza proteínas teóricas y experimentales y calcula medidas de variabilidad estructural como dr.squarei y Pn.
 
 Para generar reportes de las familias ingresadas, luego de correr ambos pogramas, debe correrse el programa "MainReport.R"", cuyo input es "input_MainReport.csv". Los archivos necesarios para correr este programa ya se encuentran en los directorios correspondientes.
+Los resultados de la corrida se verán en "FIGURES_REPORTS/".
+
+Para generar reportes múltiples de las familias ingresadas, luego de correr ambos pogramas, debe correrse el programa "MainReportComparisons.R"", cuyo input es "input_MainReport.csv". Los archivos necesarios para correr este programa ya se encuentran en los directorios correspondientes.
 Los resultados de la corrida se verán en "FIGURES_REPORTS/".
 
 ## Comparación de mutaciones teóricas en cada sitio de la proteína:

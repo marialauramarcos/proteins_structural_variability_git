@@ -7,7 +7,7 @@ In this report we compare different LPD measures (their inverse, 1/CN and 1/WCN)
 Theoretical SDi of ANM  is proportional to 1/CN with an r of aprox. 0.97, meanwhile theoretical SDi of pfANM  is proportional to 1/WCN with a lower value of r.
 To calculate LPD measures, we used only CA of aa ("CA"), and both CA and CM ("CM"). 
 We compare the results obtained for different families. To do this, we use correlations calculated by the program "analysis-structure-CN-WCN-exp.Rmd".
-The first 6 figures correrpond to the mean correlation between 1/LPD (CN or WCN) and experimental SDi, where the mean is calculated over the families. The last 6 figures show in different colors the values obtanied for each family.
+The first 6 figures correspond to the mean correlation between 1/LPD (CN or WCN) and experimental SDi, where the mean is calculated over the families. The last 6 figures show in different colors the values obtanied for each family.
 
 p = pearson correlation coef,
 s = spearman correlation coef.

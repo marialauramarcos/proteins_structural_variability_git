@@ -207,7 +207,7 @@ CN.R0.52.5.CM = (rowSums(cmap.CM.R0.52.5, na.rm = T) - 2)[1:ncol(r.CM.p.ref)]
 dist.r.CM.p.ref = dist.xyz(t(r.p.ref))
 WCN.CM = c()
 for (i in (1:ncol(r.CM.p.ref))) {
-  WCN.CM[i] = sum(1/(dist.r.CM.p.ref[i, -c(i, (i + ncol(r.CM.p.ref)))]^2))
+  WCN.CM[i] = sum(1/(dist.r.CM.p.ref[i, -c(i, (i + ncol(r.CM.p.ref)))] ^ 2))
 }
 
 ```

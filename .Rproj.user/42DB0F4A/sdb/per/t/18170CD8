@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "CalculateDynamicalVariability <- function(r.p.1,\n                                          r.p.2,\n                                          aligned.p.1.index,\n                                          aligned.p.2.index,\n                                          not.aligned.p.1.index,\n                                          not.aligned.p.2.index,\n                                          R0, \n                                          tolerance, \n                                          K.analysis) {\n\n  # analyse p.1 and p.2\n  ## calculate ENMK of p.1\n  ENMK.p.1 = CalculateENMKeff(matrix(r.p.1, nrow = 3), \n                              aligned.p.1.index, \n                              not.aligned.p.1.index, \n                              R0, \n                              tolerance, \n                              K.analysis)\n\n  ## calculate ENMK of p.2\n  ENMK.p.2 = CalculateENMKeff(matrix(r.p.2, nrow = 3), \n                              aligned.p.2.index, \n                              not.aligned.p.2.index, \n                              R0, \n                              tolerance, \n                              K.analysis)\n\n  ## get variance - covariance matrix\n  cov.p.1 = ENMK.p.1$cov\n  cov.p.2 = ENMK.p.2$cov\n\n  ## get eigen vectors\n  ve.p.1 = ENMK.p.1$ve\n  ve.p.2 = ENMK.p.2$ve\n  \n  # calculate nH and nR\n  overlap = t(ve.p.1) %*% ve.p.2\n  nH = exp( - rowSums(overlap ^ 2 * log(overlap ^ 2 + tolerance)))\n  nR = 1 / rowSums(overlap ^ 4)\n\n  # calculate MSF (Mean Square Fluctuation)\n  ## get the diagonal of the cov matrix\n  diag.p.1 = diag(cov.p.1)\n  diag.p.2 = diag(cov.p.2)\n\n  ## calculate the factor to split the diagonal\n  n.aligned = length(aligned.p.1.index)\n  factor = sort(rep(seq(1:n.aligned), 3))\n\n  ## split the diagonal\n  s.diag.p.1 = split(diag.p.1, factor)\n  s.diag.p.2 = split(diag.p.2, factor)\n\n  ## create matrices to save the data\n  MSF.p.1 = matrix(nrow = 1, ncol = n.aligned)\n  MSF.p.2 = matrix(nrow = 1, ncol = n.aligned)\n\n  ## start a loop to calculate sums for each site\n  for (i in (1:n.aligned)) {\n    MSF.p.1[, i] = sum(unlist(s.diag.p.1[i]), use.names = F)\n    MSF.p.2[, i] = sum(unlist(s.diag.p.2[i]), use.names = F)\n  }\n \n  ## calculate the difference\n  square.dif.MSF = (MSF.p.1 - MSF.p.2) ^ 2\n  \n  # create a list for the output\n  out = list(\"MSF.p.1\" = MSF.p.1,\n             \"MSF.p.2\" = MSF.p.2,\n      \"square.dif.MSF\" = square.dif.MSF, \n                  \"nH\" = nH,\n                  \"nR\" = nR) \n  out\n}\n",
+    "created" : 1511710355538.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2572541408",
+    "id" : "18170CD8",
+    "lastKnownWriteTime" : 1497742482,
+    "last_content_update" : 1497742482,
+    "path" : "C:/Users/María Laura/Desktop/proteins_structural_variability_git/FUNCTIONS/CalculateDynamicalVariability.R",
+    "project_path" : "FUNCTIONS/CalculateDynamicalVariability.R",
+    "properties" : {
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

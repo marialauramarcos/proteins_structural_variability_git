@@ -215,9 +215,16 @@ AnalyzeExperimentalTheoreticalCM <- function(family,
       exp.n.sites.p.2 = exp.n.aa.p.2
     }
     
+    # add CM to exp.p.2
+    exp.r.CM.p.2 = CalculateSideChainCM(pdbs.fname, chain.p.2)
+
+    exp.r.p.2 = c(exp.r.p.2, as.vector(exp.r.CM.p.2))
+    n.sites.tot.p.2 = length(exp.r.p.2)/3
+    
     # add indexes of CMs to not aligned
     not.aligned.p.ref.index <- c(not.aligned.p.ref.index, t(seq((n.sites.p.ref + 1), n.sites.tot)))
-
+    not.aligned.p.2.index <- c(not.aligned.p.2.index, t(seq((n.sites.p.2 + 1), n.sites.tot.p.2)))
+    
     # calculate measures of variability
     exp.variability = CalculateVariability(as.vector(exp.r.p.ref), 
                                            as.vector(exp.r.p.2), 

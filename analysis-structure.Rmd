@@ -138,13 +138,24 @@ n.sites = length(CN)
 AA = ref.pdb.ca$resid
 resno = ref.pdb.ca$resno
 
+# calculate WCN
+r.p.ref = matrix(ref.pdb$xyz[inds$xyz], nrow = 3)
+dist.r.p.ref = dist.xyz(t(r.p.ref))
+WCN = c()
+for (i in (1:ncol(r.p.ref))) {
+  WCN[i] = sum(1/dist.r.p.ref[i, -i]^2)
+}
+
 # correct active site index
 active.site.index.n = c()
 for (i in (1:length(active.site.index))) {active.site.index.n = c(active.site.index.n, which(resno == active.site.index[i]))}
 active.sites = active.site.index.n
 
+# find the active site contacts
+contacts.active.sites = d$site[d$shell == 1]
+
 # read CM data 
-if (data.dir == "OUT/out_subset_CM_ANM") { 
+if ((data.dir == "OUT/out_subset_CM_ANM") | (data.dir == "OUT/out_subset_CM_pfANM")){ 
 
   # Read PDB of p.ref
   pdb.ca = ReadCA(reference.pdb.fname, chain.p.ref)
@@ -153,10 +164,15 @@ if (data.dir == "OUT/out_subset_CM_ANM") {
   
   r.CM.p.ref = CalculateSideChainCM(reference.pdb.fname, chain.p.ref)
   n.CM = ncol(r.CM.p.ref)
-  r.p.ref = c(ref.pdb$xyz[inds$xyz], as.vector(r.CM.p.ref)) 
+  r.p.ref = c(r.ca.p.ref, as.vector(r.CM.p.ref)) 
 
   cmap.CM = cmap(r.p.ref, dcut = R0, scut = 0, mask.lower = F)[1:n.aa, ]
   CN = rowSums(cmap.CM, na.rm = T) - 2
+  
+  WCN = c()
+  for (i in (1:ncol(r.p.ref))) {
+    WCN[i] = sum(1/dist.r.p.ref[i, -c(i, (i + ncol(r.CM.p.ref)))] ^ 2)
+  }
 }
 
 # build pdb.info
@@ -166,20 +182,33 @@ b.factor = as.numeric(ref.pdb$atom[inds$atom, c("b")])
 
 # add pdb.info to site.info
 site.info = cbind(site.info, pdb.info)
-
-# find the active site contacts
-contacts.active.sites = d$site[d$shell == 1]
 ```
 
 ```{r calculate-MSF-p.ref}
+# source kij
+if (enm == "ANM") {source("FUNCTIONS/CalculateKijANM.R")}
+if (enm == "pfANM") {source("FUNCTIONS/CalculateKijPFANM.R")}
+
 # calculate MSF (Mean Square Fluctuation) of p.ref
-## calculate ENM
-ENMK.p.ref = CalculateENMKeff(matrix(r.p.ref, nrow = 3), 
+if ((data.dir == "OUT/out_subset_CA_ANM") | (data.dir == "OUT/out_subset_CA_pfANM")) {
+  ## calculate ENM CA
+  ENMK.p.ref = CalculateENMKeff(matrix(r.p.ref, nrow = 3), 
                               seq(1:n.sites), 
                               c(), 
                               R0, 
                               tolerance, 
                               K.analysis)
+}
+if((data.dir == "OUT/out_subset_CM_ANM") | (data.dir == "OUT/out_subset_CM_pfANM")) {
+## calculate ENM CM
+ENMK.p.ref = CalculateENMKeff(matrix(r.p.ref, nrow = 3), 
+                              seq(1:n.sites), 
+                              seq((n.sites + 1):ncol(matrix(r.p.ref, nrow = 3))), 
+                              R0, 
+                              tolerance, 
+                              K.analysis)
+} 
+
 ## get cov matrix
 cov.p.ref = ENMK.p.ref$cov
 
@@ -448,39 +477,47 @@ medium.mean.SD.vec <- vec2resno(as.vector(scale(sqrt(d.medium$mean.SD))), 1:ncol
 write.pdb(xyz = c(pdb.xyz.ca), b = medium.mean.SD.vec, file = file.path(data.dir, paste(p.ref, "_medium.pdb", sep = "")))
 ```
 
-### Sequence (1/CN) - structure (SDi) comparison
-In this section we compare theoretical and experimental structural divergence profiles with CN.  
+### Sequence (LPD (CN for ANM and WCN for pfANM)) - structure (SDi) comparison
+In this section we compare theoretical and experimental structural divergence profiles with LPD.  
 ```{r structure-CN-comparison}
-# save CN
-write.csv(CN, file = file.path(data.dir, paste(family, "_", p.ref, "_R0_", R0, "CN.csv", sep = "")))
+# choose LPD
+if (enm = "ANM"){
+  LPD = CN
+  # save CN
+  write.csv(CN, file = file.path(data.dir, paste(family, "_", p.ref, "_R0_", R0, "CN.csv", sep = "")))
+}else{
+  LPD = WCN
+  # save WCN
+  write.csv(WCN, file = file.path(data.dir, paste(family, "_", p.ref, "_R0_", R0, "WCN.csv", sep = "")))
+}
 
 # compare profiles
 ## plot
 par(pty = "s")
 
-plot(x = d.exp$mean.SD, y = (1/CN), xlab = "<SDi> experimental")
-plot(x = d.mut$mean.SD, y = (1/CN), xlab = "<SDi> no-selection")
-plot(x = d.medium$mean.SD, y = (1/CN), xlab = "<SDi> selection")
+plot(x = d.exp$mean.SD, y = (1/LPD), xlab = "<SDi> experimental")
+plot(x = d.mut$mean.SD, y = (1/LPD), xlab = "<SDi> no-selection")
+plot(x = d.medium$mean.SD, y = (1/LPD), xlab = "<SDi> selection")
 
 ## calculate Person correlations
-r.exp.mean.SD.CN = cor(d.exp$mean.SD, (1/CN))
-r.mut.mean.SD.CN = cor(d.mut$mean.SD, (1/CN))
-r.medium.mean.SD.CN = cor(d.medium$mean.SD, (1/CN))
+r.exp.mean.SD.LPD = cor(d.exp$mean.SD, (1/LPD))
+r.mut.mean.SD.LPD = cor(d.mut$mean.SD, (1/LPD))
+r.medium.mean.SD.LPD = cor(d.medium$mean.SD, (1/LPD))
 
-cor.df = data.frame("comparison" = c("SDi experimental vs 1/CN", "SDi no-selection vs 1/CN", "SDi selection vs 1/CN"),
-                    "R" = c(r.exp.mean.SD.CN , r.mut.mean.SD.CN, r.medium.mean.SD.CN))
+cor.df = data.frame("comparison" = c("SDi experimental vs 1/LPD", "SDi no-selection vs 1/LPD", "SDi selection vs 1/LPD"),
+                    "R" = c(r.exp.mean.SD.LPD , r.mut.mean.SD.LPD, r.medium.mean.SD.LPD))
 
-knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (1/CN)")
+knitr::kable(cor.df, digits = 2, caption = "Pearson Correlation structure (SDi) - sequence (1/LPD)")
 
 ## calculate Spearman correlations
-r.exp.mean.SD.CN = cor(d.exp$mean.SD, (1/CN), method = "spearman")
-r.mut.mean.SD.CN = cor(d.mut$mean.SD, (1/CN), method = "spearman")
-r.medium.mean.SD.CN = cor(d.medium$mean.SD, (1/CN), method = "spearman")
+r.exp.mean.SD.LPD = cor(d.exp$mean.SD, (1/LPD), method = "spearman")
+r.mut.mean.SD.LPD = cor(d.mut$mean.SD, (1/LPD), method = "spearman")
+r.medium.mean.SD.LPD = cor(d.medium$mean.SD, (1/LPD), method = "spearman")
 
-cor.df = data.frame("comparison" = c("SDi experimental vs 1/CN", "SDi no-selection vs 1/CN", "SDi selection vs 1/CN"),
-                    "R" = c(r.exp.mean.SD.CN , r.mut.mean.SD.CN, r.medium.mean.SD.CN))
+cor.df = data.frame("comparison" = c("SDi experimental vs 1/LPD", "SDi no-selection vs 1/LPD", "SDi selection vs 1/LPD"),
+                    "R" = c(r.exp.mean.SD.LPD , r.mut.mean.SD.LPD, r.medium.mean.SD.LPD))
 
-knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (1/CN)")
+knitr::kable(cor.df, digits = 2, caption = "Spearman Correlation structure (SDi) - sequence (1/LPD)")
 ```
 
 ### Sequence RSA - structure (SDi) comparison
@@ -672,7 +709,7 @@ p.accept.mut = c()
 p.accept.medium.sel = c()
 
 # correct indexes
-if (data.dir == "OUT/out_subset_CM_ANM") {
+if ((data.dir == "OUT/out_subset_CM_ANM") | (data.dir == "OUT/out_subset_CM_pfANM")) {
   mut.site.mut = mut.site.mut - n.sites
   mut.site.medium.sel = mut.site.medium.sel - n.sites
   CN.CM = sim.data.mut$CN
@@ -693,21 +730,28 @@ for (i in (1:n.sites)) {
   p.accept.medium.sel[i] = p.accept.medium.sel.i
 }
 
+# select LPD
+if (enm = "ANM"){
+  LPD = CN
+}else{
+  LPD = WCN
+}
+
 # compare exp vs no sel profiles
 ## plot
 par(pty = "s")
 
-plot(x = p.accept.mut, y = log(CN))
+plot(x = p.accept.mut, y = log(LPD))
 plot(x = p.accept.mut, y = score)
-plot(x = score, y = log(CN)) 
+plot(x = score, y = log(LPD)) 
 
 ## calculate corelations
-r.p.accept.mut.CN = cor(p.accept.mut, log(CN))
+r.p.accept.mut.LPD = cor(p.accept.mut, log(LPD))
 r.p.accept.mut.score = cor(p.accept.mut, score)
-r.score.CN = cor(score, log(CN))
+r.score.LPD = cor(score, log(LPD))
 
-cor.df = data.frame("comparison" = c("paccept no-selection vs log(CN)", "paccept no-selection vs score", "score vs log(CN)"),
-                    "R" = c(r.p.accept.mut.CN , r.p.accept.mut.score, r.score.CN))
+cor.df = data.frame("comparison" = c("paccept no-selection vs log(LPD)", "paccept no-selection vs score", "score vs log(LPD)"),
+                    "R" = c(r.p.accept.mut.LPD , r.p.accept.mut.score, r.score.LPD))
 
 knitr::kable(cor.df, digits = 2, caption = "Pearson correlation between sequence profiles")
 
@@ -718,17 +762,17 @@ print(mean(p.accept.mut))
 ## plot
 par(pty = "s")
 
-plot(x = p.accept.medium.sel, y = log(CN))
+plot(x = p.accept.medium.sel, y = log(LPD))
 plot(x = p.accept.medium.sel, y = score)
-plot(x = score, y = log(CN))
+plot(x = score, y = log(LPD))
 
 ## calculate corelations
-r.p.accept.medium.sel.CN = cor(p.accept.medium.sel, log(CN))
+r.p.accept.medium.sel.LPD = cor(p.accept.medium.sel, log(LPD))
 r.p.accept.medium.sel.score = cor(p.accept.medium.sel, score)
-r.score.CN = cor(score, log(CN))
+r.score.LPD = cor(score, log(LPD))
 
-cor.df = data.frame("comparison" = c("paccept selection vs log(CN)", "paccept selection vs score", "score vs log(CN)"),
-                    "R" = c(r.p.accept.medium.sel.CN , r.p.accept.medium.sel.score, r.score.CN))
+cor.df = data.frame("comparison" = c("paccept selection vs log(LPD)", "paccept selection vs score", "score vs log(LPD)"),
+                    "R" = c(r.p.accept.medium.sel.LPD , r.p.accept.medium.sel.score, r.score.LPD))
 
 knitr::kable(cor.df, digits = 2, caption = "Pearson correlation between sequence profiles")
 

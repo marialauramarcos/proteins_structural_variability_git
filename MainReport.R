@@ -26,7 +26,6 @@ for (f in (1:nrow(input))) {
   family <- as.character(input$family)[f]
   type <- as.character(input$type)[f]
   p.ref <- as.character(input$p.ref)[f]
-  enm <- as.character(input$enm)[f]
   n.mut.p <- input$n.mut.p[f]
   R0.CA = input$R0.CA[f]
   R0.CM = input$R0.CM[f]
@@ -38,6 +37,7 @@ for (f in (1:nrow(input))) {
   ## ANM CA
   data.dir <- "OUT/out_subset_CA_ANM"
   out.dir <- "FIGURES_REPORTS"
+  enm <- "ANM"
   
   R0 = R0.CA
   
@@ -79,16 +79,19 @@ for (f in (1:nrow(input))) {
   
  
   ## CM
-  #data.dir <- paste("OUT/out_subset_CM_ANM", sep = "")
-  #R0 = R0.CM
+  data.dir <- paste("OUT/out_subset_CM_ANM", sep = "")
+  out.dir <- "FIGURES_REPORTS"
+  enm <- "ANM"
   
-  ### Pn
-  #rmarkdown::render('analysis-normal-modes.Rmd', 
-  #                   output_file =  paste(out.dir, "/report_normal_modes_CM_", family, "_", enm, "_R0_", R0, ".html", sep = ''))
+  R0 = R0.CM
   
-  ### RMSD
-  #rmarkdown::render('analysis-structure.Rmd', 
-  #                  output_file =  paste(out.dir, "/report_structure_CM_", family, "_", enm, "_R0_", R0, ".html", sep = ''))
+  ### Structure - Normal modes analysis
+  rmarkdown::render('analysis-normal-modes.Rmd', 
+                    output_file =  paste(out.dir, "/report_normal_modes_CM_", family, "_", enm, "_R0_", R0, ".html", sep = ''))
+  
+  ### Structure - Cartesian coordinates analysis
+  rmarkdown::render('analysis-structure.Rmd', 
+                    output_file =  paste(out.dir, "/report_structure_CM_", family, "_", enm, "_R0_", R0, ".html", sep = ''))
   
   ### MSF
   #rmarkdown::render('analysis-dynamical-MSF-structure.Rmd', 
@@ -115,10 +118,17 @@ for (f in (1:nrow(input))) {
   #                  output_file =  paste(out.dir, "/report_structure_local_enviroment_CM_", family, "_", enm, "_R0_", R0, ".html", sep = ''))
   
   ## pfANM CA
-  #R0 = "NC"
-  #data.dir <- paste("OUT/out_subset_CA_pfANM", sep = "")
+  data.dir <- "OUT/out_subset_CA_pfANM"
+  out.dir <- "FIGURES_REPORTS"
+  enm <- "pfANM"
   
-  ### RMSD
-  #rmarkdown::render('analysis-structure-pfANM.Rmd', 
-  #                  output_file =  paste(out.dir, "/report_structure_pfANM_", family, ".html", sep = ''))
+  R0 = "NC"
+  
+  ### Structure - Normal modes analysis
+  rmarkdown::render('analysis-normal-modes.Rmd', 
+                    output_file =  paste(out.dir, "/report_normal_modes_CA_", family, "_", enm, "_R0_", R0, ".html", sep = ''))
+  
+  ### Structure - Cartesian coordinates analysis
+  rmarkdown::render('analysis-structure.Rmd', 
+                    output_file =  paste(out.dir, "/report_structure_CA_", family, "_", enm, "_R0_", R0, ".html", sep = ''))
 }

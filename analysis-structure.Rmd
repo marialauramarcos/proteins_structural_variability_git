@@ -21,6 +21,8 @@ library(bio3d)
 # load functions
 source(file.path(data.dir, "multiplot.R"))
 source(file.path(data.dir, "my-functions.R"))
+source("FUNCTIONS/CalculateENMKeff.R")
+source("FUNCTIONS/CalculateENMK.R")
 source("FUNCTIONS/CalculateSideChainCM.R")
 source("FUNCTIONS/readCA.R") 
 ```
@@ -186,7 +188,7 @@ site.info = cbind(site.info, pdb.info)
 
 ```{r calculate-MSF-p.ref}
 # source kij
-if (enm == "ANM") {source("FUNCTIONS/CalculateKijANM.R")}
+if (enm == "ANM") {source("FUNCTIONS/CalculateKij.R")}
 if (enm == "pfANM") {source("FUNCTIONS/CalculateKijPFANM.R")}
 
 # calculate MSF (Mean Square Fluctuation) of p.ref
@@ -481,7 +483,7 @@ write.pdb(xyz = c(pdb.xyz.ca), b = medium.mean.SD.vec, file = file.path(data.dir
 In this section we compare theoretical and experimental structural divergence profiles with LPD.  
 ```{r structure-CN-comparison}
 # choose LPD
-if (enm = "ANM"){
+if (enm == "ANM"){
   LPD = CN
   # save CN
   write.csv(CN, file = file.path(data.dir, paste(family, "_", p.ref, "_R0_", R0, "CN.csv", sep = "")))
@@ -731,10 +733,10 @@ for (i in (1:n.sites)) {
 }
 
 # select LPD
-if (enm = "ANM"){
+if (enm == "ANM"){
   LPD = CN
 }else{
-  LPD = WCN
+  LPD == WCN
 }
 
 # compare exp vs no sel profiles

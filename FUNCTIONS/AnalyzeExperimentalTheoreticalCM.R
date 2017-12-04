@@ -203,7 +203,7 @@ AnalyzeExperimentalTheoreticalCM <- function(family,
     exp.r.p.2 = exp.pdb.p.2$xyz.calpha
     exp.n.aa.p.2 = ncol(exp.r.p.2)
     
-    # calculate heme coordinates, add them to CAÂ´s coordinates and calculate the number of sites and not aligned indexes
+    # calculate heme coordinates, add them to CA´s coordinates and calculate the number of sites and not aligned indexes
     if (heme == "TRUE") {
       exp.r.heme.p.2 = ReadHeme(pdbs.fname, chain.p.2)
       exp.r.p.2 = cbind(exp.r.p.2, exp.r.heme.p.2)
@@ -223,7 +223,7 @@ AnalyzeExperimentalTheoreticalCM <- function(family,
     
     # add indexes of CMs to not aligned
     not.aligned.p.ref.index <- c(not.aligned.p.ref.index, t(seq((n.sites.p.ref + 1), n.sites.tot)))
-    not.aligned.p.2.index <- c(not.aligned.p.2.index, t(seq((n.sites.p.2 + 1), n.sites.tot.p.2)))
+    not.aligned.p.2.index <- c(not.aligned.p.2.index, t(seq((exp.n.sites.p.2 + 1), n.sites.tot.p.2)))
     
     # calculate measures of variability
     exp.variability = CalculateVariability(as.vector(exp.r.p.ref), 

@@ -16,12 +16,11 @@ library(markdown)
 input.fname <- "input_MainReport.csv"
 input <- read.csv(input.fname)
 
-
 ## comparisons LPD vs SDexp all families
 rmarkdown::render('comparison_families_LPD_vs_SDexp.Rmd', 
                   output_file =  paste("FIGURES_REPORTS/report_comparison_families_LPD_vs_SDexp", ".html", sep = ""))
 
-## comparisons figures structure all families
+## comparisons figures structure all families CA ANM
 R0 = 12.5
 enm = "ANM"
 data.dir = "OUT/out_subset_CA_ANM"
@@ -29,20 +28,45 @@ data.dir = "OUT/out_subset_CA_ANM"
 rmarkdown::render('figures2_structure_all_families.Rmd', 
                   output_file =  paste("FIGURES_REPORTS/report_comparison_figures_structure_all_families_CA","_", enm, "_R0_", R0, ".html", sep = ''))
 
+## comparisons figures structure all families CM ANM
+#R0 = 12.5
+#enm = "ANM"
+#data.dir = "OUT/out_subset_CM_ANM"
+
+#rmarkdown::render('figures2_structure_all_families.Rmd', 
+#                  output_file =  paste("FIGURES_REPORTS/report_comparison_figures_structure_all_families_CM","_", enm, "_R0_", R0, ".html", sep = ''))
+
+## comparisons figures structure all families CA pfANM
+#R0 = "NC"
+#enm = "pfANM"
+#data.dir = "OUT/out_subset_CA_pfANM"
+
+#rmarkdown::render('figures2_structure_all_families.Rmd', 
+#                  output_file =  paste("FIGURES_REPORTS/report_comparison_figures_structure_all_families_CA","_", enm, "_R0_", R0, ".html", sep = ''))
+
+## comparisons figures structure all families CM pfANM
+#R0 = "NC"
+#enm = "pfANM"
+#data.dir = "OUT/out_subset_CM_pfANM"
+
+#rmarkdown::render('figures2_structure_all_families.Rmd', 
+#                  output_file =  paste("FIGURES_REPORTS/report_comparison_figures_structure_all_families_CM","_", enm, "_R0_", R0, ".html", sep = ''))
+
+
 ## comparisons mutants all families
 #rmarkdown::render('comparison_families.Rmd', 
 #                  output_file =  paste("FIGURES_REPORTS/report_comparison_families", ".html", sep = ''))
 
 # satart a loop for each family
-for (f in (1:nrow(input))) { 
-  print(f)
-  family <- as.character(input$family)[f]
-  type <- as.character(input$type)[f]
-  p.ref <- as.character(input$p.ref)[f]
-  enm <- as.character(input$enm)[f]
-  n.mut.p <- input$n.mut.p[f]
-  chain.p.ref <- as.character(input$chain.p.ref)[f]
-  print(family)
+#for (f in (1:nrow(input))) { 
+#  print(f)
+#  family <- as.character(input$family)[f]
+#  type <- as.character(input$type)[f]
+#  p.ref <- as.character(input$p.ref)[f]
+#  enm <- as.character(input$enm)[f]
+#  n.mut.p <- input$n.mut.p[f]
+#  chain.p.ref <- as.character(input$chain.p.ref)[f]
+#  print(family)
   
   # generate reports - comparisons CA - CM and R0s
   
@@ -73,4 +97,4 @@ for (f in (1:nrow(input))) {
   #rmarkdown::render('comparison_R0.Rmd', 
   #                  output_file =  paste("OUT/report_comparison_CM_", family, "_", enm,"_R0_", R0.1, "_", R0.2, ".html", sep = ''))
   
-}
+#}

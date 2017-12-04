@@ -1,10 +1,10 @@
 family,p.ref,chain.p.ref,n.mut.p,enm,fmax,R0.CA,R0.CM,rotate,heme,calculate.betas,analyze.family,generate.mutants,analyze.experimental.theoretical,K.analysis
 
-serinProteases,1mcta,G,50,ANM,2,12.5,NC,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
-az,1bxva,G,50,ANM,2,12.5,NC,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
-phoslip,1jiaa,L,50,ANM,2,12.5,NC,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
-fabp,1hmt,D,50,ANM,2,12.5,NC,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
-globins,1a4fb,d,50,ANM,2,12.5,NC,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
-sh3,1lcka,F,50,ANM,2,12.5,NC,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
-snakesToxin,1ntx,S,50,ANM,2,12.5,NC,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
-rrm,1fxla2,G,50,ANM,2,12.5,NC,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
+serinProteases,1mcta,G,2,ANM,2,12.5,12.5,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
+az,1bxva,G,2,ANM,2,12.5,12.5,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
+phoslip,1jiaa,L,2,ANM,2,12.5,12.5,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
+fabp,1hmt,D,2,ANM,2,12.5,12.5,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
+globins,1a4fb,d,2,ANM,2,12.5,12.5,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
+sh3,1lcka,F,2,ANM,2,12.5,12.5,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
+snakesToxin,1ntx,S,2,ANM,2,12.5,12.5,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff
+rrm,1fxla2,G,2,ANM,2,12.5,12.5,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,Keff

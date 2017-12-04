@@ -8,7 +8,7 @@ We study the evolutionary divergence of proteins using the LF-ENM and comparing 
 
 ```{r setup, include = FALSE}
 # set chunk options
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = TRUE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE)
 ```
 
 ```{r load-packages}
@@ -172,7 +172,9 @@ if ((data.dir == "OUT/out_subset_CM_ANM") | (data.dir == "OUT/out_subset_CM_pfAN
   CN = rowSums(cmap.CM, na.rm = T) - 2
   
   WCN = c()
-  for (i in (1:ncol(r.p.ref))) {
+  r.p.ref = matrix(r.p.ref, nrow = 3)
+  dist.r.p.ref = dist.xyz(t(r.p.ref))
+  for (i in (1:ncol(r.CM.p.ref))) {
     WCN[i] = sum(1/dist.r.p.ref[i, -c(i, (i + ncol(r.CM.p.ref)))] ^ 2)
   }
 }
@@ -202,13 +204,13 @@ if ((data.dir == "OUT/out_subset_CA_ANM") | (data.dir == "OUT/out_subset_CA_pfAN
                               K.analysis)
 }
 if((data.dir == "OUT/out_subset_CM_ANM") | (data.dir == "OUT/out_subset_CM_pfANM")) {
-## calculate ENM CM
-ENMK.p.ref = CalculateENMKeff(matrix(r.p.ref, nrow = 3), 
-                              seq(1:n.sites), 
-                              seq((n.sites + 1):ncol(matrix(r.p.ref, nrow = 3))), 
-                              R0, 
-                              tolerance, 
-                              K.analysis)
+  ## calculate ENM CM
+  ENMK.p.ref = CalculateENMKeff(matrix(r.p.ref, nrow = 3), 
+                                seq(1:n.sites), 
+                                seq((n.sites + 1),ncol(matrix(r.p.ref, nrow = 3))), 
+                                R0, 
+                                tolerance, 
+                                K.analysis)
 } 
 
 ## get cov matrix
